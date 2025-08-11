@@ -1,0 +1,226 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  LOAN_OFFICER
+  APPROVER
+  APPLICANT
+}
+
+enum LoanStatus {
+  PENDING
+  UNDER_REVIEW
+  ADDITIONAL_INFO_REQUESTED
+  APPROVED
+  REJECTED
+  DISBURSED
+  CLOSED
+}
+
+enum DocumentType {
+  ID_CARD
+  PASSPORT
+  BANK_STATEMENT
+  PAY_SLIP
+  UTILITY_BILL
+  BUSINESS_REGISTRATION
+  TAX_CLEARANCE
+  COLLATERAL_DOCUMENT
+  OTHER
+}
+
+enum NotificationType {
+  APPLICATION_SUBMITTED
+  APPLICATION_REVIEWED
+  ADDITIONAL_INFO_REQUESTED
+  APPLICATION_APPROVED
+  APPLICATION_REJECTED
+  LOAN_DISBURSED
+  PAYMENT_REMINDER
+  SYSTEM_NOTIFICATION
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String
+  password      String
+  role          UserRole
+  phoneNumber   String?
+  address       String?
+  isActive      Boolean  @default(true)
+  emailVerified Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  loanApplications LoanApplication[]
+  reviews          LoanReview[]
+  auditLogs        AuditLog[]
+  notifications    Notification[]
+  createdLoans     Loan[]
+
+  @@map("users")
+}
+
+model LoanApplication {
+  id              String      @id @default(cuid())
+  applicantId     String
+  applicant       User        @relation(fields: [applicantId], references: [id])
+  
+  // Application Details
+  amount          Float
+  purpose         String
+  duration        Int         // in months
+  interestRate    Float       // annual percentage rate
+  monthlyIncome   Float
+  employmentStatus String
+  employerName    String?
+  workExperience  Int?        // in years
+  
+  // Status Tracking
+  status          LoanStatus  @default(PENDING)
+  submittedAt     DateTime    @default(now())
+  reviewedAt      DateTime?
+  approvedAt      DateTime?
+  rejectedAt      DateTime?
+  disbursedAt     DateTime?
+  closedAt        DateTime?
+  
+  // Additional Info
+  additionalInfoRequested String?
+  additionalInfoProvided  String?
+  
+  // Metadata
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  // Relations
+  documents       Document[]
+  reviews         LoanReview[]
+  loan            Loan?
+  notifications    Notification[]
+
+  @@map("loan_applications")
+}
+
+model Document {
+  id           String       @id @default(cuid())
+  applicationId String
+  application  LoanApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  
+  type         DocumentType
+  fileName     String
+  filePath     String
+  fileSize     Int
+  mimeType     String
+  uploadedAt   DateTime     @default(now())
+  
+  // Metadata
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@map("documents")
+}
+
+model Loan {
+  id             String    @id @default(cuid())
+  applicationId  String    @unique
+  application    LoanApplication @relation(fields: [applicationId], references: [id])
+  
+  // Loan Details
+  approvedAmount Float
+  disbursementAmount Float
+  interestRate   Float
+  duration       Int       // in months
+  monthlyPayment Float
+  
+  // Disbursement
+  disbursementDate DateTime?
+  bankAccount    String?
+  bankName       String?
+  
+  // Repayment
+  totalRepaid    Float     @default(0)
+  nextPaymentDue DateTime?
+  isFullyPaid    Boolean   @default(false)
+  closedAt       DateTime?
+  
+  // Metadata
+  createdBy      String
+  creator        User        @relation(fields: [createdBy], references: [id])
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@map("loans")
+}
+
+model LoanReview {
+  id           String   @id @default(cuid())
+  applicationId String
+  application  LoanApplication @relation(fields: [applicationId], references: [id])
+  
+  reviewerId   String
+  reviewer     User     @relation(fields: [reviewerId], references: [id])
+  
+  reviewType   String   // "OFFICER_REVIEW" or "APPROVER_REVIEW"
+  status       String   // "APPROVED", "REJECTED", "REQUEST_INFO"
+  comments     String?
+  recommendation String?
+  
+  reviewedAt   DateTime @default(now())
+  
+  // Metadata
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("loan_reviews")
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id])
+  
+  type      NotificationType
+  title     String
+  message   String
+  isRead    Boolean          @default(false)
+  
+  // Optional references
+  loanApplicationId String?
+  loanApplication   LoanApplication? @relation(fields: [loanApplicationId], references: [id])
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("notifications")
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  
+  action      String
+  entityType  String?
+  entityId    String?
+  oldValues   String?
+  newValues   String?
+  ipAddress   String?
+  userAgent   String?
+  
+  createdAt   DateTime @default(now())
+
+  @@map("audit_logs")
+}
