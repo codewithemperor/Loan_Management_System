@@ -66,7 +66,7 @@ interface LoanApplication {
   reviews: Review[]
 }
 
-export default function OfficerApplicationReview() {
+export default function ApproverApplicationReview() {
   const router = useRouter()
   const [application, setApplication] = useState<LoanApplication | null>(null)
   const [loading, setLoading] = useState(true)
@@ -98,7 +98,7 @@ export default function OfficerApplicationReview() {
     fetchApplication()
   }, [])
 
-  const handleSubmitReview = async () => {
+  const handleSubmitDecision = async () => {
     if (!decision || !application) return
 
     setSubmitting(true)
@@ -111,7 +111,7 @@ export default function OfficerApplicationReview() {
         body: JSON.stringify({
           decision,
           comments,
-          reviewType: "OFFICER_REVIEW"
+          reviewType: "APPROVER_REVIEW"
         })
       })
 
@@ -120,7 +120,7 @@ export default function OfficerApplicationReview() {
       }
 
       // Redirect back to dashboard
-      router.push("/officer")
+      router.push("/approver")
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to submit review")
     } finally {
@@ -164,7 +164,7 @@ export default function OfficerApplicationReview() {
 
   if (loading) {
     return (
-      <DashboardLayout requiredRoles={[UserRole.LOAN_OFFICER, UserRole.SUPER_ADMIN]}>
+      <DashboardLayout requiredRoles={[UserRole.APPROVER, UserRole.SUPER_ADMIN]}>
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
@@ -174,14 +174,14 @@ export default function OfficerApplicationReview() {
 
   if (error || !application) {
     return (
-      <DashboardLayout requiredRoles={[UserRole.LOAN_OFFICER, UserRole.SUPER_ADMIN]}>
+      <DashboardLayout requiredRoles={[UserRole.APPROVER, UserRole.SUPER_ADMIN]}>
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
             <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
             <h2 className="text-lg font-semibold mb-2">Error</h2>
             <p className="text-muted-foreground mb-4">{error || "Application not found"}</p>
             <Button asChild>
-              <Link href="/officer">
+              <Link href="/approver">
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back to Dashboard
               </Link>
@@ -193,13 +193,13 @@ export default function OfficerApplicationReview() {
   }
 
   return (
-    <DashboardLayout requiredRoles={[UserRole.LOAN_OFFICER, UserRole.SUPER_ADMIN]}>
+    <DashboardLayout requiredRoles={[UserRole.APPROVER, UserRole.SUPER_ADMIN]}>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <Button variant="outline" asChild>
-              <Link href="/officer">
+              <Link href="/approver">
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back
               </Link>
@@ -207,7 +207,7 @@ export default function OfficerApplicationReview() {
             <div>
               <h1 className="text-3xl font-bold tracking-tight">Application Review</h1>
               <p className="text-muted-foreground">
-                Review loan application {application.id.slice(-8)}
+                Review and approve loan application {application.id.slice(-8)}
               </p>
             </div>
           </div>
@@ -372,7 +372,7 @@ export default function OfficerApplicationReview() {
               <CardHeader>
                 <CardTitle>Make Decision</CardTitle>
                 <CardDescription>
-                  Review and make a decision on this loan application
+                  Approve or reject this loan application
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -399,18 +399,6 @@ export default function OfficerApplicationReview() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Request Additional Info</label>
-                  <Button
-                    variant={decision === "REQUEST_INFO" ? "default" : "outline"}
-                    className="w-full"
-                    onClick={() => setDecision("REQUEST_INFO")}
-                  >
-                    <AlertCircle className="h-4 w-4 mr-2" />
-                    Request Additional Information
-                  </Button>
-                </div>
-
-                <div className="space-y-2">
                   <label className="text-sm font-medium">Comments</label>
                   <Textarea
                     placeholder="Provide comments for your decision..."
@@ -422,10 +410,10 @@ export default function OfficerApplicationReview() {
 
                 <Button
                   className="w-full"
-                  onClick={handleSubmitReview}
+                  onClick={handleSubmitDecision}
                   disabled={!decision || submitting}
                 >
-                  {submitting ? "Submitting..." : "Submit Review"}
+                  {submitting ? "Submitting..." : "Submit Decision"}
                 </Button>
               </CardContent>
             </Card>

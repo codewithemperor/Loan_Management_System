@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { LoanApplicationStatus } from "@prisma/client"
+import { LoanStatus, NotificationType } from "@prisma/client"
 
 export async function POST(
   request: NextRequest,
@@ -15,20 +15,20 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    if (session.user.role !== "LOAN_OFFICER" && session.user.role !== "SUPER_ADMIN") {
+    if (session.user.role !== "LOAN_OFFICER" && session.user.role !== "APPROVER" && session.user.role !== "SUPER_ADMIN") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 })
     }
 
-    const { recommendation, notes } = await request.json()
+    const { decision, comments, reviewType } = await request.json()
 
-    if (!recommendation || !["APPROVE", "REJECT", "REQUEST_MORE_INFO"].includes(recommendation)) {
+    if (!decision || !["APPROVED", "REJECTED", "REQUEST_INFO"].includes(decision)) {
       return NextResponse.json(
-        { error: "Invalid recommendation" },
+        { error: "Invalid decision" },
         { status: 400 }
       )
     }
 
-    // Check if application exists and is in reviewable state
+    // Check if application exists
     const application = await db.loanApplication.findUnique({
       where: { id: params.id },
       include: {
@@ -44,47 +44,46 @@ export async function POST(
       )
     }
 
-    if (application.status !== LoanApplicationStatus.SUBMITTED && 
-        application.status !== LoanApplicationStatus.UNDER_REVIEW) {
+    // Check if application is in reviewable state
+    if (session.user.role === "LOAN_OFFICER" && application.status !== LoanStatus.PENDING) {
       return NextResponse.json(
-        { error: "Application is not in a reviewable state" },
+        { error: "Application is not in a reviewable state for loan officer" },
         { status: 400 }
       )
     }
 
-    // Check if all required documents are approved
-    const pendingDocuments = application.documents.filter(doc => doc.status === "PENDING")
-    if (pendingDocuments.length > 0 && recommendation === "APPROVE") {
+    if (session.user.role === "APPROVER" && application.status !== LoanStatus.UNDER_REVIEW) {
       return NextResponse.json(
-        { error: "All documents must be reviewed before approving the application" },
+        { error: "Application is not in a reviewable state for approver" },
         { status: 400 }
       )
     }
 
-    // Update application status based on recommendation
-    let newStatus: LoanApplicationStatus
-    switch (recommendation) {
-      case "APPROVE":
-        newStatus = LoanApplicationStatus.APPROVED
+    // Update application status based on decision
+    let newStatus: LoanStatus
+    switch (decision) {
+      case "APPROVED":
+        newStatus = session.user.role === "APPROVER" ? LoanStatus.APPROVED : LoanStatus.UNDER_REVIEW
         break
-      case "REJECT":
-        newStatus = LoanApplicationStatus.REJECTED
+      case "REJECTED":
+        newStatus = LoanStatus.REJECTED
         break
-      case "REQUEST_MORE_INFO":
-        newStatus = LoanApplicationStatus.UNDER_REVIEW
+      case "REQUEST_INFO":
+        newStatus = LoanStatus.ADDITIONAL_INFO_REQUESTED
         break
       default:
-        newStatus = LoanApplicationStatus.UNDER_REVIEW
+        newStatus = application.status
     }
 
     // Create loan review record
     const loanReview = await db.loanReview.create({
       data: {
-        loanApplicationId: params.id,
+        applicationId: params.id,
         reviewerId: session.user.id,
-        recommendation: recommendation as any,
-        notes: notes || "",
-        status: "COMPLETED"
+        reviewType: reviewType || (session.user.role === "APPROVER" ? "APPROVER_REVIEW" : "OFFICER_REVIEW"),
+        status: decision,
+        comments: comments || "",
+        recommendation: decision
       }
     })
 
@@ -93,8 +92,9 @@ export async function POST(
       where: { id: params.id },
       data: {
         status: newStatus,
-        reviewedById: session.user.id,
-        reviewedAt: new Date()
+        ...(decision === "APPROVED" && session.user.role === "APPROVER" && { approvedAt: new Date() }),
+        ...(decision === "REJECTED" && { rejectedAt: new Date() }),
+        ...(decision === "REQUEST_INFO" && { additionalInfoRequested: comments })
       }
     })
 
@@ -102,9 +102,11 @@ export async function POST(
     await db.notification.create({
       data: {
         userId: application.applicantId,
+        type: decision === "APPROVED" ? NotificationType.APPLICATION_APPROVED :
+              decision === "REJECTED" ? NotificationType.APPLICATION_REJECTED :
+              NotificationType.ADDITIONAL_INFO_REQUESTED,
         title: "Application Review Update",
-        message: `Your loan application has been ${recommendation.toLowerCase()} by the loan officer.`,
-        type: "APPLICATION_UPDATE",
+        message: `Your loan application has been ${decision.toLowerCase()} by the ${session.user.role.toLowerCase()}.`,
         loanApplicationId: params.id
       }
     })
@@ -112,16 +114,20 @@ export async function POST(
     // Create audit log
     await db.auditLog.create({
       data: {
+        userId: session.user.id,
         action: "APPLICATION_REVIEWED",
         entityType: "LoanApplication",
         entityId: params.id,
-        userId: session.user.id,
-        details: {
-          oldStatus: application.status,
-          newStatus,
-          recommendation,
-          notes
-        }
+        oldValues: JSON.stringify({
+          status: application.status
+        }),
+        newValues: JSON.stringify({
+          status: newStatus,
+          decision,
+          comments
+        }),
+        ipAddress: request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown",
+        userAgent: request.headers.get("user-agent") || "unknown",
       }
     })
 

@@ -71,7 +71,7 @@ export async function GET(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    return NextResponse.json({ application })
+    return NextResponse.json(application)
   } catch (error) {
     console.error("Error fetching application:", error)
     return NextResponse.json(

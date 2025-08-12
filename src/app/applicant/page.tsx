@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { UserRole } from "@prisma/client"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -7,7 +8,149 @@ import { Button } from "@/components/ui/button"
 import { FileText, CreditCard, Clock, CheckCircle, AlertCircle, Plus, Eye } from "lucide-react"
 import Link from "next/link"
 
+interface LoanApplication {
+  id: string
+  amount: number
+  purpose: string
+  status: string
+  submittedAt: string
+}
+
+interface Loan {
+  id: string
+  approvedAmount: number
+  monthlyPayment: number
+  disbursementDate?: string
+  isFullyPaid: boolean
+}
+
+interface DashboardStats {
+  activeApplications: number
+  activeLoans: number
+  pendingApproval: number
+  totalBorrowed: number
+}
+
 export default function ApplicantDashboard() {
+  const [stats, setStats] = useState<DashboardStats>({
+    activeApplications: 0,
+    activeLoans: 0,
+    pendingApproval: 0,
+    totalBorrowed: 0
+  })
+  const [recentApplications, setRecentApplications] = useState<LoanApplication[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        // Fetch applications
+        const applicationsResponse = await fetch('/api/applications?limit=5')
+        if (!applicationsResponse.ok) {
+          throw new Error("Failed to fetch applications")
+        }
+        const applicationsData = await applicationsResponse.json()
+        
+        // Fetch loans
+        const loansResponse = await fetch('/api/loans')
+        if (!loansResponse.ok) {
+          throw new Error("Failed to fetch loans")
+        }
+        const loansData = await loansResponse.json()
+
+        // Calculate stats
+        const applications = applicationsData.applications || []
+        const loans = loansData.loans || []
+        
+        const activeApplications = applications.filter(app => 
+          ['PENDING', 'UNDER_REVIEW', 'ADDITIONAL_INFO_REQUESTED'].includes(app.status)
+        ).length
+        
+        const activeLoans = loans.filter(loan => !loan.isFullyPaid).length
+        const pendingApproval = applications.filter(app => app.status === 'UNDER_REVIEW').length
+        const totalBorrowed = loans.reduce((sum: number, loan: Loan) => sum + loan.approvedAmount, 0)
+
+        setStats({
+          activeApplications,
+          activeLoans,
+          pendingApproval,
+          totalBorrowed
+        })
+
+        // Set recent applications (last 2)
+        setRecentApplications(applications.slice(0, 2))
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load dashboard data")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchDashboardData()
+  }, [])
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "APPROVED":
+      case "DISBURSED":
+        return "green"
+      case "REJECTED":
+        return "red"
+      case "UNDER_REVIEW":
+      case "ADDITIONAL_INFO_REQUESTED":
+        return "yellow"
+      case "PENDING":
+        return "blue"
+      default:
+        return "gray"
+    }
+  }
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case "PENDING":
+        return "Pending"
+      case "UNDER_REVIEW":
+        return "Under Review"
+      case "ADDITIONAL_INFO_REQUESTED":
+        return "Additional Info Requested"
+      case "APPROVED":
+        return "Approved"
+      case "REJECTED":
+        return "Rejected"
+      case "DISBURSED":
+        return "Disbursed"
+      default:
+        return status
+    }
+  }
+
+  if (loading) {
+    return (
+      <DashboardLayout requiredRoles={[UserRole.APPLICANT, UserRole.SUPER_ADMIN]}>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      </DashboardLayout>
+    )
+  }
+
+  if (error) {
+    return (
+      <DashboardLayout requiredRoles={[UserRole.APPLICANT, UserRole.SUPER_ADMIN]}>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+            <h2 className="text-lg font-semibold mb-2">Error</h2>
+            <p className="text-muted-foreground mb-4">{error}</p>
+            <Button onClick={() => window.location.reload()}>Try Again</Button>
+          </div>
+        </div>
+      </DashboardLayout>
+    )
+  }
+
   return (
     <DashboardLayout requiredRoles={[UserRole.APPLICANT, UserRole.SUPER_ADMIN]}>
       <div className="space-y-6">
@@ -26,7 +169,7 @@ export default function ApplicantDashboard() {
               <FileText className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">2</div>
+              <div className="text-2xl font-bold">{stats.activeApplications}</div>
               <p className="text-xs text-muted-foreground">
                 Currently being processed
               </p>
@@ -39,7 +182,7 @@ export default function ApplicantDashboard() {
               <CreditCard className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">1</div>
+              <div className="text-2xl font-bold">{stats.activeLoans}</div>
               <p className="text-xs text-muted-foreground">
                 Currently active loans
               </p>
@@ -52,7 +195,7 @@ export default function ApplicantDashboard() {
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">1</div>
+              <div className="text-2xl font-bold">{stats.pendingApproval}</div>
               <p className="text-xs text-muted-foreground">
                 Awaiting approval
               </p>
@@ -65,7 +208,7 @@ export default function ApplicantDashboard() {
               <CheckCircle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">₦200,000</div>
+              <div className="text-2xl font-bold">₦{stats.totalBorrowed.toLocaleString()}</div>
               <p className="text-xs text-muted-foreground">
                 Total amount borrowed
               </p>
@@ -91,46 +234,40 @@ export default function ApplicantDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {[
-                  { 
-                    amount: "₦500,000", 
-                    purpose: "Business expansion", 
-                    status: "Under Review",
-                    submitted: "2 days ago",
-                    statusColor: "yellow"
-                  },
-                  { 
-                    amount: "₦200,000", 
-                    purpose: "Emergency medical", 
-                    status: "Approved",
-                    submitted: "1 week ago",
-                    statusColor: "green"
-                  },
-                ].map((application, index) => (
-                  <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
+                {recentApplications.length > 0 ? recentApplications.map((application) => (
+                  <div key={application.id} className="flex items-center justify-between p-4 border rounded-lg">
                     <div className="space-y-1">
                       <div className="flex items-center space-x-2">
-                        <p className="text-sm font-medium leading-none">{application.amount}</p>
+                        <p className="text-sm font-medium leading-none">₦{application.amount.toLocaleString()}</p>
                         <span className={`text-xs px-2 py-1 rounded-full ${
-                          application.statusColor === "green" ? "bg-green-100 text-green-800" :
-                          application.statusColor === "yellow" ? "bg-yellow-100 text-yellow-800" :
-                          application.statusColor === "red" ? "bg-red-100 text-red-800" :
-                          "bg-blue-100 text-blue-800"
+                          getStatusColor(application.status) === "green" ? "bg-green-100 text-green-800" :
+                          getStatusColor(application.status) === "yellow" ? "bg-yellow-100 text-yellow-800" :
+                          getStatusColor(application.status) === "red" ? "bg-red-100 text-red-800" :
+                          getStatusColor(application.status) === "blue" ? "bg-blue-100 text-blue-800" :
+                          "bg-gray-100 text-gray-800"
                         }`}>
-                          {application.status}
+                          {getStatusLabel(application.status)}
                         </span>
                       </div>
                       <p className="text-sm text-muted-foreground">{application.purpose}</p>
-                      <p className="text-xs text-muted-foreground">Submitted {application.submitted}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Submitted {new Date(application.submittedAt).toLocaleDateString()}
+                      </p>
                     </div>
                     <div className="flex space-x-2">
-                      <Button size="sm" variant="outline">
-                        <Eye className="h-4 w-4 mr-1" />
-                        View Details
+                      <Button size="sm" variant="outline" asChild>
+                        <Link href={`/applicant/applications/${application.id}`}>
+                          <Eye className="h-4 w-4 mr-1" />
+                          View Details
+                        </Link>
                       </Button>
                     </div>
                   </div>
-                ))}
+                )) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No applications found
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -184,7 +321,7 @@ export default function ApplicantDashboard() {
                   <AlertCircle className="h-5 w-5 text-yellow-500" />
                   <div>
                     <p className="font-medium">Notifications</p>
-                    <p className="text-sm text-muted-foreground">3 new notifications</p>
+                    <p className="text-sm text-muted-foreground">View notifications</p>
                   </div>
                 </div>
               </div>

@@ -53,7 +53,9 @@ enum NotificationType {
 model User {
   id            String   @id @default(cuid())
   email         String   @unique
-  name          String
+  firstName     String
+  lastName      String
+  name          String   // Computed field: firstName + lastName
   password      String
   role          UserRole
   phoneNumber   String?

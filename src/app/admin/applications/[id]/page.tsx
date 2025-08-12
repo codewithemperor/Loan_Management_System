@@ -6,7 +6,6 @@ import { UserRole } from "@prisma/client"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { 
   FileText, 
@@ -64,22 +63,26 @@ interface LoanApplication {
   }
   documents: Document[]
   reviews: Review[]
+  loan?: {
+    id: string
+    approvedAmount: number
+    disbursementAmount: number
+    monthlyPayment: number
+    disbursementDate?: string
+  }
 }
 
-export default function OfficerApplicationReview() {
+export default function AdminApplicationDetail() {
   const router = useRouter()
   const [application, setApplication] = useState<LoanApplication | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [decision, setDecision] = useState<string>("")
-  const [comments, setComments] = useState<string>("")
-  const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
     const fetchApplication = async () => {
       try {
         const pathParts = window.location.pathname.split('/')
-        const applicationId = pathParts[pathParts.length - 2]
+        const applicationId = pathParts[pathParts.length - 1]
         
         const response = await fetch(`/api/applications/${applicationId}`)
         if (!response.ok) {
@@ -98,36 +101,6 @@ export default function OfficerApplicationReview() {
     fetchApplication()
   }, [])
 
-  const handleSubmitReview = async () => {
-    if (!decision || !application) return
-
-    setSubmitting(true)
-    try {
-      const response = await fetch(`/api/applications/${application.id}/review`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          decision,
-          comments,
-          reviewType: "OFFICER_REVIEW"
-        })
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to submit review")
-      }
-
-      // Redirect back to dashboard
-      router.push("/officer")
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to submit review")
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
   const getStatusColor = (status: string) => {
     switch (status) {
       case "APPROVED":
@@ -138,6 +111,8 @@ export default function OfficerApplicationReview() {
         return "bg-yellow-100 text-yellow-800"
       case "PENDING":
         return "bg-blue-100 text-blue-800"
+      case "DISBURSED":
+        return "bg-purple-100 text-purple-800"
       default:
         return "bg-gray-100 text-gray-800"
     }
@@ -164,7 +139,7 @@ export default function OfficerApplicationReview() {
 
   if (loading) {
     return (
-      <DashboardLayout requiredRoles={[UserRole.LOAN_OFFICER, UserRole.SUPER_ADMIN]}>
+      <DashboardLayout requiredRoles={[UserRole.SUPER_ADMIN]}>
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
@@ -174,16 +149,16 @@ export default function OfficerApplicationReview() {
 
   if (error || !application) {
     return (
-      <DashboardLayout requiredRoles={[UserRole.LOAN_OFFICER, UserRole.SUPER_ADMIN]}>
+      <DashboardLayout requiredRoles={[UserRole.SUPER_ADMIN]}>
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
             <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
             <h2 className="text-lg font-semibold mb-2">Error</h2>
             <p className="text-muted-foreground mb-4">{error || "Application not found"}</p>
             <Button asChild>
-              <Link href="/officer">
+              <Link href="/admin/applications">
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Dashboard
+                Back to Applications
               </Link>
             </Button>
           </div>
@@ -193,21 +168,21 @@ export default function OfficerApplicationReview() {
   }
 
   return (
-    <DashboardLayout requiredRoles={[UserRole.LOAN_OFFICER, UserRole.SUPER_ADMIN]}>
+    <DashboardLayout requiredRoles={[UserRole.SUPER_ADMIN]}>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <Button variant="outline" asChild>
-              <Link href="/officer">
+              <Link href="/admin/applications">
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back
               </Link>
             </Button>
             <div>
-              <h1 className="text-3xl font-bold tracking-tight">Application Review</h1>
+              <h1 className="text-3xl font-bold tracking-tight">Application Details</h1>
               <p className="text-muted-foreground">
-                Review loan application {application.id.slice(-8)}
+                View loan application details and manage status
               </p>
             </div>
           </div>
@@ -245,7 +220,7 @@ export default function OfficerApplicationReview() {
                   </div>
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Phone</p>
-                    <p className="text-lg">{application.applicant.phoneNumber}</p>
+                    <p className="text-lg">{application.phoneNumber}</p>
                   </div>
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Address</p>
@@ -281,6 +256,18 @@ export default function OfficerApplicationReview() {
                     <p className="text-sm font-medium text-muted-foreground">Employment Status</p>
                     <p className="text-lg">{application.employmentStatus}</p>
                   </div>
+                  {application.employerName && (
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Employer</p>
+                      <p className="text-lg">{application.employerName}</p>
+                    </div>
+                  )}
+                  {application.workExperience && (
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Work Experience</p>
+                      <p className="text-lg">{application.workExperience} years</p>
+                    </div>
+                  )}
                   <div className="col-span-2">
                     <p className="text-sm font-medium text-muted-foreground">Purpose</p>
                     <p className="text-lg">{application.purpose}</p>
@@ -329,13 +316,13 @@ export default function OfficerApplicationReview() {
               </CardContent>
             </Card>
 
-            {/* Previous Reviews */}
+            {/* Reviews */}
             {application.reviews.length > 0 && (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Clock className="h-5 w-5" />
-                    Previous Reviews
+                    Application Reviews
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -366,70 +353,8 @@ export default function OfficerApplicationReview() {
             )}
           </div>
 
-          {/* Decision Panel */}
+          {/* Side Panel */}
           <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Make Decision</CardTitle>
-                <CardDescription>
-                  Review and make a decision on this loan application
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Decision</label>
-                  <div className="flex gap-2">
-                    <Button
-                      variant={decision === "APPROVED" ? "default" : "outline"}
-                      className="flex-1"
-                      onClick={() => setDecision("APPROVED")}
-                    >
-                      <CheckCircle className="h-4 w-4 mr-2" />
-                      Approve
-                    </Button>
-                    <Button
-                      variant={decision === "REJECTED" ? "destructive" : "outline"}
-                      className="flex-1"
-                      onClick={() => setDecision("REJECTED")}
-                    >
-                      <XCircle className="h-4 w-4 mr-2" />
-                      Reject
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Request Additional Info</label>
-                  <Button
-                    variant={decision === "REQUEST_INFO" ? "default" : "outline"}
-                    className="w-full"
-                    onClick={() => setDecision("REQUEST_INFO")}
-                  >
-                    <AlertCircle className="h-4 w-4 mr-2" />
-                    Request Additional Information
-                  </Button>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Comments</label>
-                  <Textarea
-                    placeholder="Provide comments for your decision..."
-                    value={comments}
-                    onChange={(e) => setComments(e.target.value)}
-                    rows={4}
-                  />
-                </div>
-
-                <Button
-                  className="w-full"
-                  onClick={handleSubmitReview}
-                  disabled={!decision || submitting}
-                >
-                  {submitting ? "Submitting..." : "Submit Review"}
-                </Button>
-              </CardContent>
-            </Card>
-
             {/* Application Summary */}
             <Card>
               <CardHeader>
@@ -454,6 +379,51 @@ export default function OfficerApplicationReview() {
                   <span className="text-muted-foreground">Reviews</span>
                   <span>{application.reviews.length}</span>
                 </div>
+                {application.loan && (
+                  <>
+                    <div className="border-t pt-3">
+                      <p className="font-medium mb-2">Loan Details</p>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Approved Amount</span>
+                        <span>₦{application.loan.approvedAmount.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Monthly Payment</span>
+                        <span>₦{application.loan.monthlyPayment.toLocaleString()}</span>
+                      </div>
+                      {application.loan.disbursementDate && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Disbursed</span>
+                          <span>{new Date(application.loan.disbursementDate).toLocaleDateString()}</span>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Actions */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Actions</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <Button variant="outline" className="w-full" asChild>
+                  <Link href={`/officer/applications/${application.id}/review`}>
+                    Review as Officer
+                  </Link>
+                </Button>
+                <Button variant="outline" className="w-full" asChild>
+                  <Link href={`/approver/applications/${application.id}/review`}>
+                    Review as Approver
+                  </Link>
+                </Button>
+                <Button variant="outline" className="w-full" asChild>
+                  <Link href="/admin/applications">
+                    View All Applications
+                  </Link>
+                </Button>
               </CardContent>
             </Card>
           </div>

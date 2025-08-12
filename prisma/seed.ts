@@ -15,6 +15,8 @@ async function main() {
     update: {},
     create: {
       email: 'admin@aopecredit.com',
+      firstName: 'Super',
+      lastName: 'Admin',
       name: 'Super Admin',
       password: hashedPassword,
       role: UserRole.SUPER_ADMIN,
@@ -29,6 +31,8 @@ async function main() {
     update: {},
     create: {
       email: 'officer@aopecredit.com',
+      firstName: 'Loan',
+      lastName: 'Officer',
       name: 'Loan Officer',
       password: hashedPassword,
       role: UserRole.LOAN_OFFICER,
@@ -43,6 +47,8 @@ async function main() {
     update: {},
     create: {
       email: 'approver@aopecredit.com',
+      firstName: 'Loan',
+      lastName: 'Approver',
       name: 'Loan Approver',
       password: hashedPassword,
       role: UserRole.APPROVER,
@@ -57,6 +63,8 @@ async function main() {
     update: {},
     create: {
       email: 'applicant1@example.com',
+      firstName: 'John',
+      lastName: 'Doe',
       name: 'John Doe',
       password: hashedPassword,
       role: UserRole.APPLICANT,
@@ -72,6 +80,8 @@ async function main() {
     update: {},
     create: {
       email: 'applicant2@example.com',
+      firstName: 'Jane',
+      lastName: 'Smith',
       name: 'Jane Smith',
       password: hashedPassword,
       role: UserRole.APPLICANT,
