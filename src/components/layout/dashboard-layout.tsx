@@ -6,6 +6,8 @@ import { useEffect } from "react"
 import { UserRole } from "@prisma/client"
 import { Sidebar } from "./sidebar"
 import { Header } from "./header"
+import { SuspenseWrapper } from "@/components/ui/suspense-wrapper"
+import { Skeleton } from "@/components/ui/skeleton"
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -49,7 +51,9 @@ export function DashboardLayout({ children, requiredRoles }: DashboardLayoutProp
         <Header user={session.user} />
         <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 dark:bg-gray-900">
           <div className="container mx-auto px-6 py-8">
-            {children}
+            <SuspenseWrapper>
+              {children}
+            </SuspenseWrapper>
           </div>
         </main>
       </div>

@@ -7,20 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { 
-  FileText, 
-  Eye, 
-  Search, 
-  Filter, 
-  Calendar, 
-  CheckCircle, 
-  CreditCard,
-  User,
-  TrendingUp,
-  DollarSign
-} from "lucide-react"
+import { FileText, Eye, Search, CheckCircle, User, Calendar } from "lucide-react"
 import { format } from "date-fns"
 import Link from "next/link"
 
@@ -38,18 +26,10 @@ interface LoanApplication {
     email: string
     phoneNumber?: string
   }
-  loan?: {
-    id: string
-    approvedAmount: number
-    disbursementAmount: number
-    monthlyPayment: number
-    disbursementDate?: string
-  }
   reviews: Array<{
     id: string
     status: string
     comments?: string
-    recommendation?: string
     reviewedAt: string
     reviewer: {
       name: string
@@ -68,12 +48,31 @@ interface ApplicationsResponse {
   }
 }
 
-export default function ApprovedLoans() {
+const statusColors = {
+  PENDING: "blue",
+  UNDER_REVIEW: "yellow",
+  ADDITIONAL_INFO_REQUESTED: "orange",
+  APPROVED: "green",
+  REJECTED: "red",
+  DISBURSED: "purple",
+  CLOSED: "gray",
+}
+
+const statusLabels = {
+  PENDING: "Pending",
+  UNDER_REVIEW: "Under Review",
+  ADDITIONAL_INFO_REQUESTED: "Additional Info Requested",
+  APPROVED: "Approved",
+  REJECTED: "Rejected",
+  DISBURSED: "Disbursed",
+  CLOSED: "Closed",
+}
+
+export default function ApproverApproved() {
   const [applications, setApplications] = useState<LoanApplication[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
-  const [disbursementFilter, setDisbursementFilter] = useState<string>("all")
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
 
@@ -83,7 +82,7 @@ export default function ApprovedLoans() {
       const params = new URLSearchParams({
         page: currentPage.toString(),
         limit: "10",
-        status: "APPROVED", // Only show approved applications
+        status: "APPROVED",
       })
 
       const response = await fetch(`/api/applications?${params}`)
@@ -110,20 +109,8 @@ export default function ApprovedLoans() {
     const matchesSearch = app.purpose.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           app.applicant.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           app.amount.toString().includes(searchTerm)
-    
-    const matchesDisbursement = disbursementFilter === "all" || 
-                              (disbursementFilter === "disbursed" && app.loan?.disbursementDate) ||
-                              (disbursementFilter === "pending" && !app.loan?.disbursementDate)
-    
-    return matchesSearch && matchesDisbursement
+    return matchesSearch
   })
-
-  const getApproverName = (application: LoanApplication) => {
-    const approverReview = application.reviews.find(review => 
-      review.reviewType === "APPROVER_REVIEW" && review.status === "APPROVED"
-    )
-    return approverReview?.reviewer.name || "Unknown"
-  }
 
   if (loading) {
     return (
@@ -140,7 +127,7 @@ export default function ApprovedLoans() {
       <DashboardLayout requiredRoles={[UserRole.APPROVER, UserRole.SUPER_ADMIN]}>
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
-            <CheckCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+            <FileText className="w-12 h-12 text-red-500 mx-auto mb-4" />
             <h2 className="text-lg font-semibold mb-2">Error</h2>
             <p className="text-muted-foreground mb-4">{error}</p>
             <Button onClick={fetchApplications}>Try Again</Button>
@@ -154,14 +141,14 @@ export default function ApprovedLoans() {
     <DashboardLayout requiredRoles={[UserRole.APPROVER, UserRole.SUPER_ADMIN]}>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Approved Loans</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Approved Applications</h1>
           <p className="text-muted-foreground">
             View all loan applications that have been approved.
           </p>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-3">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Approved</CardTitle>
@@ -177,45 +164,30 @@ export default function ApprovedLoans() {
           
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Disbursed</CardTitle>
-              <CreditCard className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">Total Amount</CardTitle>
+              <FileText className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {applications.filter(app => app.loan?.disbursementDate).length}
+                ₦{applications.reduce((sum, app) => sum + app.amount, 0).toLocaleString()}
               </div>
               <p className="text-xs text-muted-foreground">
-                Loans disbursed
+                Total approved amount
               </p>
             </CardContent>
           </Card>
           
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pending Disbursement</CardTitle>
+              <CardTitle className="text-sm font-medium">Ready for Disbursement</CardTitle>
               <Calendar className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {applications.filter(app => app.loan && !app.loan.disbursementDate).length}
+                {applications.filter(app => app.status === "APPROVED").length}
               </div>
               <p className="text-xs text-muted-foreground">
                 Awaiting disbursement
-              </p>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Value</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                ₦{applications.reduce((sum, app) => sum + (app.loan?.approvedAmount || app.amount), 0).toLocaleString()}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Total approved amount
               </p>
             </CardContent>
           </Card>
@@ -226,7 +198,7 @@ export default function ApprovedLoans() {
           <CardHeader>
             <CardTitle>Filter Applications</CardTitle>
             <CardDescription>
-              Search and filter approved loan applications
+              Search and filter approved applications
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -242,18 +214,6 @@ export default function ApprovedLoans() {
                   />
                 </div>
               </div>
-              <div className="md:w-48">
-                <Select value={disbursementFilter} onValueChange={setDisbursementFilter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Filter by status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="disbursed">Disbursed</SelectItem>
-                    <SelectItem value="pending">Pending Disbursement</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
           </CardContent>
         </Card>
@@ -263,7 +223,7 @@ export default function ApprovedLoans() {
           <CardHeader>
             <CardTitle>Approved Applications</CardTitle>
             <CardDescription>
-              All loan applications that have been approved
+              All approved loan applications
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -272,8 +232,8 @@ export default function ApprovedLoans() {
                 <CheckCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium mb-2">No approved applications found</h3>
                 <p className="text-muted-foreground mb-4">
-                  {searchTerm || disbursementFilter !== "all" 
-                    ? "Try adjusting your filters or search terms."
+                  {searchTerm 
+                    ? "Try adjusting your search terms."
                     : "No applications have been approved yet."
                   }
                 </p>
@@ -286,11 +246,10 @@ export default function ApprovedLoans() {
                       <TableRow>
                         <TableHead>Application ID</TableHead>
                         <TableHead>Applicant</TableHead>
-                        <TableHead>Approved Amount</TableHead>
+                        <TableHead>Amount</TableHead>
                         <TableHead>Purpose</TableHead>
-                        <TableHead>Approved By</TableHead>
+                        <TableHead>Status</TableHead>
                         <TableHead>Approved Date</TableHead>
-                        <TableHead>Disbursement Status</TableHead>
                         <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -310,32 +269,29 @@ export default function ApprovedLoans() {
                             </div>
                           </TableCell>
                           <TableCell className="font-medium">
-                            ₦{(application.loan?.approvedAmount || application.amount).toLocaleString()}
+                            ₦{application.amount.toLocaleString()}
                           </TableCell>
                           <TableCell className="max-w-xs truncate">
                             {application.purpose}
                           </TableCell>
                           <TableCell>
-                            <div className="text-sm">{getApproverName(application)}</div>
+                            <Badge 
+                              variant={
+                                application.status === "APPROVED" ? "default" :
+                                application.status === "DISBURSED" ? "secondary" :
+                                "outline"
+                              }
+                              className="flex items-center gap-1"
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                              {statusLabels[application.status as keyof typeof statusLabels]}
+                            </Badge>
                           </TableCell>
                           <TableCell>
-                            {application.approvedAt 
-                              ? format(new Date(application.approvedAt), "MMM dd, yyyy")
-                              : "N/A"
+                            {application.approvedAt ? 
+                              format(new Date(application.approvedAt), "MMM dd, yyyy") : 
+                              "N/A"
                             }
-                          </TableCell>
-                          <TableCell>
-                            {application.loan?.disbursementDate ? (
-                              <Badge variant="default" className="flex items-center gap-1">
-                                <CheckCircle className="w-3 h-3" />
-                                Disbursed
-                              </Badge>
-                            ) : (
-                              <Badge variant="secondary" className="flex items-center gap-1">
-                                <Calendar className="w-3 h-3" />
-                                Pending
-                              </Badge>
-                            )}
                           </TableCell>
                           <TableCell>
                             <div className="flex space-x-2">
@@ -345,14 +301,6 @@ export default function ApprovedLoans() {
                                   View
                                 </Link>
                               </Button>
-                              {application.loan && !application.loan.disbursementDate && (
-                                <Button asChild size="sm">
-                                  <Link href={`/approver/applications/${application.id}/disburse`}>
-                                    <CreditCard className="w-4 h-4 mr-1" />
-                                    Disburse
-                                  </Link>
-                                </Button>
-                              )}
                             </div>
                           </TableCell>
                         </TableRow>
@@ -360,29 +308,6 @@ export default function ApprovedLoans() {
                     </TableBody>
                   </Table>
                 </div>
-
-                {/* Pagination */}
-                {totalPages > 1 && (
-                  <div className="flex justify-center space-x-2">
-                    <Button
-                      variant="outline"
-                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                      disabled={currentPage === 1}
-                    >
-                      Previous
-                    </Button>
-                    <span className="flex items-center px-4">
-                      Page {currentPage} of {totalPages}
-                    </span>
-                    <Button
-                      variant="outline"
-                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                      disabled={currentPage === totalPages}
-                    >
-                      Next
-                    </Button>
-                  </div>
-                )}
               </div>
             )}
           </CardContent>
