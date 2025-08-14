@@ -28,7 +28,6 @@ async function getApplicationDetails(applicationId: string) {
             id: true,
             type: true,
             fileName: true,
-            status: true,
             uploadedAt: true
           }
         },
@@ -81,14 +80,15 @@ async function getApplicationDetails(applicationId: string) {
   }
 }
 
-export default async function ApplicationDetailPage({ params }: { params: { id: string } }) {
+export default async function ApplicationDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions)
   
   if (!session) {
     return <div>Unauthorized</div>
   }
 
-  const application = await getApplicationDetails(params.id)
+  const { id } = await params
+  const application = await getApplicationDetails(id)
   
   if (!application) {
     notFound()
@@ -109,18 +109,18 @@ export default async function ApplicationDetailPage({ params }: { params: { id: 
             <div>
               <h1 className="text-3xl font-bold tracking-tight">Application Details</h1>
               <p className="text-muted-foreground">
-                Review loan application {params.id}
+                Review loan application {id}
               </p>
             </div>
           </div>
           <div className="flex space-x-2">
             <Button size="sm" variant="outline" asChild>
-              <Link href={`/approver/applications/${params.id}/review`}>
+              <Link href={`/approver/applications/${id}/review`}>
                 Review Application
               </Link>
             </Button>
             {application.status === "Approved" && (
-              <form action={`/api/applications/${params.id}/disburse`} method="POST">
+              <form action={`/api/applications/${id}/disburse`} method="POST">
                 <Button size="sm" className="bg-green-600 hover:bg-green-700">
                   Disburse Loan
                 </Button>
@@ -250,13 +250,7 @@ export default async function ApplicationDetailPage({ params }: { params: { id: 
                         <div>
                           <p className="font-medium">{document.fileName}</p>
                           <div className="flex items-center space-x-2 mt-1">
-                            <Badge className={
-                              document.status === "APPROVED" ? "bg-green-100 text-green-800" :
-                              document.status === "REJECTED" ? "bg-red-100 text-red-800" :
-                              "bg-yellow-100 text-yellow-800"
-                            }>
-                              {document.status}
-                            </Badge>
+                            <Badge variant="outline">{document.type}</Badge>
                             <span className="text-xs text-muted-foreground">
                               {new Date(document.uploadedAt).toLocaleDateString()}
                             </span>

@@ -5,7 +5,7 @@ import { db } from "@/lib/db"
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -19,9 +19,11 @@ export async function POST(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
+    const { id } = await params
+
     // Check if application exists and is approved
     const application = await db.loanApplication.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         applicant: true,
         loan: true
@@ -42,7 +44,7 @@ export async function POST(
 
     // Update application status to disbursed
     const updatedApplication = await db.loanApplication.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         status: "DISBURSED",
         disbursedAt: new Date()
@@ -74,7 +76,7 @@ export async function POST(
         userId: session.user.id,
         action: "DISBURSE_LOAN",
         entityType: "LoanApplication",
-        entityId: params.id,
+        entityId: id,
         oldValues: JSON.stringify({
           status: application.status,
           disbursedAt: application.disbursedAt,
@@ -95,7 +97,7 @@ export async function POST(
         type: "LOAN_DISBURSED",
         title: "Loan Disbursed",
         message: `Your loan of ₦${application.amount.toLocaleString()} has been disbursed to your account.`,
-        loanApplicationId: params.id,
+        loanApplicationId: id,
       },
     })
 

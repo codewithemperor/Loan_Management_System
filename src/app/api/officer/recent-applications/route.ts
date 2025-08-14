@@ -18,7 +18,10 @@ export async function GET(request: NextRequest) {
 
     const applications = await db.loanApplication.findMany({
       take: 5,
-      where: { status: { in: ["PENDING", "ADDITIONAL_INFO_REQUESTED"] } },
+      where: { 
+        status: { in: ["PENDING", "ADDITIONAL_INFO_REQUESTED"] },
+        assignedOfficerId: session.user.id
+      },
       orderBy: { createdAt: "desc" },
       include: {
         applicant: {

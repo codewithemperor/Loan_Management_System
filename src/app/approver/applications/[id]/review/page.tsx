@@ -120,7 +120,7 @@ export default function ApproverApplicationReview() {
       }
 
       // Redirect back to dashboard
-      router.push("/approver")
+      router.push("approver/approved")
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to submit review")
     } finally {

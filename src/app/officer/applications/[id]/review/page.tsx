@@ -56,6 +56,11 @@ interface LoanApplication {
   workExperience?: number
   phoneNumber: string
   address: string
+  interestRate: number
+  accountNumber?: string
+  bankName?: string
+  bvn?: string
+  nin?: string
   applicant: {
     id: string
     name: string
@@ -64,6 +69,16 @@ interface LoanApplication {
   }
   documents: Document[]
   reviews: Review[]
+  loan?: {
+    id: string
+    approvedAmount: number
+    disbursementAmount: number
+    monthlyPayment: number
+    totalRepayment: number
+    interestRate: number
+    disbursementDate?: string
+    isFullyPaid: boolean
+  }
 }
 
 export default function OfficerApplicationReview() {
@@ -120,7 +135,7 @@ export default function OfficerApplicationReview() {
       }
 
       // Redirect back to dashboard
-      router.push("/officer")
+      router.push("/officer/applications")
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to submit review")
     } finally {
@@ -274,6 +289,10 @@ export default function OfficerApplicationReview() {
                     <p className="text-lg">{application.duration} months</p>
                   </div>
                   <div>
+                    <p className="text-sm font-medium text-muted-foreground">Interest Rate</p>
+                    <p className="text-lg font-semibold">{application.interestRate}%</p>
+                  </div>
+                  <div>
                     <p className="text-sm font-medium text-muted-foreground">Monthly Income</p>
                     <p className="text-lg">₦{application.monthlyIncome.toLocaleString()}</p>
                   </div>
@@ -281,10 +300,65 @@ export default function OfficerApplicationReview() {
                     <p className="text-sm font-medium text-muted-foreground">Employment Status</p>
                     <p className="text-lg">{application.employmentStatus}</p>
                   </div>
+                  {application.employerName && (
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Employer</p>
+                      <p className="text-lg">{application.employerName}</p>
+                    </div>
+                  )}
+                  {application.workExperience && (
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Work Experience</p>
+                      <p className="text-lg">{application.workExperience} years</p>
+                    </div>
+                  )}
                   <div className="col-span-2">
                     <p className="text-sm font-medium text-muted-foreground">Purpose</p>
                     <p className="text-lg">{application.purpose}</p>
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Account Details */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="h-5 w-5" />
+                  Account Details
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-4">
+                  {application.accountNumber && (
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Account Number</p>
+                      <p className="text-lg font-mono">•••• {application.accountNumber.slice(-4)}</p>
+                    </div>
+                  )}
+                  {application.bankName && (
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Bank Name</p>
+                      <p className="text-lg">{application.bankName}</p>
+                    </div>
+                  )}
+                  {application.bvn && (
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">BVN</p>
+                      <p className="text-lg font-mono">•••• {application.bvn.slice(-4)}</p>
+                    </div>
+                  )}
+                  {application.nin && (
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">NIN</p>
+                      <p className="text-lg font-mono">•••• {application.nin.slice(-4)}</p>
+                    </div>
+                  )}
+                  {(!application.accountNumber && !application.bankName && !application.bvn && !application.nin) && (
+                    <div className="col-span-2">
+                      <p className="text-muted-foreground">No account details provided</p>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

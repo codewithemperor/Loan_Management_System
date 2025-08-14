@@ -55,6 +55,11 @@ interface LoanApplication {
   workExperience?: number
   phoneNumber: string
   address: string
+  interestRate: number
+  accountNumber?: string
+  bankName?: string
+  bvn?: string
+  nin?: string
   applicant: {
     id: string
     name: string
@@ -68,7 +73,10 @@ interface LoanApplication {
     approvedAmount: number
     disbursementAmount: number
     monthlyPayment: number
+    totalRepayment: number
+    interestRate: number
     disbursementDate?: string
+    isFullyPaid: boolean
   }
 }
 
@@ -249,6 +257,10 @@ export default function AdminApplicationDetail() {
                     <p className="text-lg">{application.duration} months</p>
                   </div>
                   <div>
+                    <p className="text-sm font-medium text-muted-foreground">Interest Rate</p>
+                    <p className="text-lg font-semibold">{application.interestRate}%</p>
+                  </div>
+                  <div>
                     <p className="text-sm font-medium text-muted-foreground">Monthly Income</p>
                     <p className="text-lg">₦{application.monthlyIncome.toLocaleString()}</p>
                   </div>
@@ -272,6 +284,49 @@ export default function AdminApplicationDetail() {
                     <p className="text-sm font-medium text-muted-foreground">Purpose</p>
                     <p className="text-lg">{application.purpose}</p>
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Account Details */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="h-5 w-5" />
+                  Account Details
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-4">
+                  {application.accountNumber && (
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Account Number</p>
+                      <p className="text-lg font-mono">•••• {application.accountNumber.slice(-4)}</p>
+                    </div>
+                  )}
+                  {application.bankName && (
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Bank Name</p>
+                      <p className="text-lg">{application.bankName}</p>
+                    </div>
+                  )}
+                  {application.bvn && (
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">BVN</p>
+                      <p className="text-lg font-mono">•••• {application.bvn.slice(-4)}</p>
+                    </div>
+                  )}
+                  {application.nin && (
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">NIN</p>
+                      <p className="text-lg font-mono">•••• {application.nin.slice(-4)}</p>
+                    </div>
+                  )}
+                  {(!application.accountNumber && !application.bankName && !application.bvn && !application.nin) && (
+                    <div className="col-span-2">
+                      <p className="text-muted-foreground">No account details provided</p>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -388,8 +443,16 @@ export default function AdminApplicationDetail() {
                         <span>₦{application.loan.approvedAmount.toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between">
+                        <span className="text-muted-foreground">Interest Rate</span>
+                        <span>{application.loan.interestRate}%</span>
+                      </div>
+                      <div className="flex justify-between">
                         <span className="text-muted-foreground">Monthly Payment</span>
                         <span>₦{application.loan.monthlyPayment.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Total Repayment</span>
+                        <span>₦{application.loan.totalRepayment.toLocaleString()}</span>
                       </div>
                       {application.loan.disbursementDate && (
                         <div className="flex justify-between">
@@ -397,6 +460,12 @@ export default function AdminApplicationDetail() {
                           <span>{new Date(application.loan.disbursementDate).toLocaleDateString()}</span>
                         </div>
                       )}
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Payment Status</span>
+                        <Badge className={application.loan.isFullyPaid ? "bg-green-100 text-green-800" : "bg-blue-100 text-blue-800"}>
+                          {application.loan.isFullyPaid ? "Fully Paid" : "Active"}
+                        </Badge>
+                      </div>
                     </div>
                   </>
                 )}

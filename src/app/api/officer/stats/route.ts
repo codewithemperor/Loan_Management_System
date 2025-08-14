@@ -16,20 +16,40 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    const [pending, reviewedToday, needAttention, totalReviewed] = await Promise.all([
-      db.loanApplication.count({ where: { status: "PENDING" } }),
+    const [pending, reviewedToday, needAttention, approvedCount] = await Promise.all([
       db.loanApplication.count({ 
         where: { 
-          status: { in: ["UNDER_REVIEW", "APPROVED", "REJECTED"] },
-          updatedAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) }
+          status: "PENDING",
+          assignedOfficerId: session.user.id
+        } 
+      }),
+      db.loanReview.count({ 
+        where: { 
+          reviewerId: session.user.id,
+          reviewedAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) }
         }
       }),
-      db.loanApplication.count({ where: { status: "ADDITIONAL_INFO_REQUESTED" } }),
-      db.loanApplication.count({ where: { status: "APPROVED" } })
+      db.loanApplication.count({ 
+        where: { 
+          status: "ADDITIONAL_INFO_REQUESTED",
+          assignedOfficerId: session.user.id
+        } 
+      }),
+      db.loanReview.count({ 
+        where: { 
+          reviewerId: session.user.id,
+          status: "APPROVED"
+        }
+      })
     ])
 
-    const totalApplications = await db.loanApplication.count()
-    const approvalRate = totalApplications > 0 ? Math.round((totalReviewed / totalApplications) * 100) : 0
+    const totalReviewed = await db.loanReview.count({ 
+      where: { 
+        reviewerId: session.user.id
+      }
+    })
+    
+    const approvalRate = totalReviewed > 0 ? Math.round((approvedCount / totalReviewed) * 100) : 0
 
     const stats = {
       pending,
