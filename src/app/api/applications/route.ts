@@ -151,6 +151,25 @@ export async function POST(request: NextRequest) {
       console.log("No active loan officers found")
     }
 
+    // Check applicant exists
+    const applicantExists = await db.user.findUnique({
+      where: { id: session.user.id },
+    });
+    if (!applicantExists) {
+      throw new Error(`Applicant with id ${session.user.id} not found`);
+    }
+
+    // Check officer exists (if assigned)
+    if (assignedOfficerId) {
+      const officerExists = await db.user.findUnique({
+        where: { id: assignedOfficerId },
+      });
+      if (!officerExists) {
+        throw new Error(`Loan officer with id ${assignedOfficerId} not found`);
+      }
+    }
+
+
     // Create loan application first
     console.log("Creating loan application in database...")
     const loanApplication = await db.loanApplication.create({
@@ -164,8 +183,8 @@ export async function POST(request: NextRequest) {
         employmentStatus: validatedData.employmentStatus,
         employerName: validatedData.employerName,
         workExperience: validatedData.workExperience,
-        // phoneNumber: validatedData.phoneNumber,
-        // address: validatedData.address,
+        phoneNumber: validatedData.phoneNumber,
+        address: validatedData.address,
         accountNumber: validatedData.accountNumber,
         bankName: validatedData.bankName,
         bvn: validatedData.bvn,

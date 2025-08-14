@@ -66,7 +66,7 @@ model User {
   email         String   @unique
   firstName     String
   lastName      String
-  name          String   // Computed field: firstName + lastName
+  name          String // Computed field: firstName + lastName
   password      String
   role          UserRole
   phoneNumber   String?
@@ -77,156 +77,158 @@ model User {
   updatedAt     DateTime @updatedAt
 
   // Relations
-  loanApplications LoanApplication[]
+  loanApplications     LoanApplication[]
   assignedApplications LoanApplication[] @relation("LoanOfficerAssignment")
-  reviews          LoanReview[]
-  auditLogs        AuditLog[]
-  notifications    Notification[]
-  createdLoans     Loan[]
-  interestRates    InterestRate[]
+  reviews              LoanReview[]
+  auditLogs            AuditLog[]
+  notifications        Notification[]
+  createdLoans         Loan[]
+  interestRates        InterestRate[]
 
   @@map("users")
 }
 
 model LoanApplication {
-  id              String      @id @default(cuid())
-  applicantId     String
-  applicant       User        @relation(fields: [applicantId], references: [id])
-  
+  id          String @id @default(cuid())
+  applicantId String
+  applicant   User   @relation(fields: [applicantId], references: [id])
+
   // Application Details
-  amount          Float
-  purpose         String
-  duration        Int         // in months
-  interestRate    Float       // annual percentage rate
-  monthlyIncome   Float
+  amount           Float
+  purpose          String
+  duration         Int // in months
+  interestRate     Float // annual percentage rate
+  monthlyIncome    Float
   employmentStatus String
-  employerName    String?
-  workExperience  Int?        // in years
-  
+  employerName     String?
+  workExperience   Int? // in years
+
   // Account Details
-  accountNumber   String?
-  bankName        String?
-  bvn             String?     // Bank Verification Number
-  nin             String?     // National Identification Number
-  
+  accountNumber String?
+  bankName      String?
+  phoneNumber   String?
+  address       String?
+  bvn           String? // Bank Verification Number
+  nin           String? // National Identification Number
+
   // Assignment
   assignedOfficerId String?
-  assignedOfficer   User?     @relation("LoanOfficerAssignment", fields: [assignedOfficerId], references: [id])
-  
+  assignedOfficer   User?   @relation("LoanOfficerAssignment", fields: [assignedOfficerId], references: [id])
+
   // Status Tracking
-  status          LoanStatus  @default(PENDING)
-  submittedAt     DateTime    @default(now())
-  reviewedAt      DateTime?
-  approvedAt      DateTime?
-  rejectedAt      DateTime?
-  disbursedAt     DateTime?
-  closedAt        DateTime?
-  
+  status      LoanStatus @default(PENDING)
+  submittedAt DateTime   @default(now())
+  reviewedAt  DateTime?
+  approvedAt  DateTime?
+  rejectedAt  DateTime?
+  disbursedAt DateTime?
+  closedAt    DateTime?
+
   // Additional Info
   additionalInfoRequested String?
   additionalInfoProvided  String?
-  
+
   // Metadata
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  documents       Document[]
-  reviews         LoanReview[]
-  loan            Loan?
-  notifications    Notification[]
+  documents     Document[]
+  reviews       LoanReview[]
+  loan          Loan?
+  notifications Notification[]
 
   @@map("loan_applications")
 }
 
 model Document {
-  id           String       @id @default(cuid())
+  id            String          @id @default(cuid())
   applicationId String
-  application  LoanApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-  
-  type         DocumentType
-  fileName     String
-  filePath     String
-  fileSize     Int
-  mimeType     String
-  uploadedAt   DateTime     @default(now())
-  
+  application   LoanApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  type       DocumentType
+  fileName   String
+  filePath   String
+  fileSize   Int
+  mimeType   String
+  uploadedAt DateTime     @default(now())
+
   // For ID card documents
-  idCardType   IdCardType?
-  
+  idCardType IdCardType?
+
   // Metadata
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("documents")
 }
 
 model Loan {
-  id             String    @id @default(cuid())
-  applicationId  String    @unique
-  application    LoanApplication @relation(fields: [applicationId], references: [id])
-  
+  id            String          @id @default(cuid())
+  applicationId String          @unique
+  application   LoanApplication @relation(fields: [applicationId], references: [id])
+
   // Loan Details
-  approvedAmount Float
+  approvedAmount     Float
   disbursementAmount Float
-  interestRate   Float
-  duration       Int       // in months
-  monthlyPayment Float
-  totalRepayment Float     // Total amount to be paid (principal + interest)
-  
+  interestRate       Float
+  duration           Int // in months
+  monthlyPayment     Float
+  totalRepayment     Float // Total amount to be paid (principal + interest)
+
   // Disbursement
   disbursementDate DateTime?
-  bankAccount    String?
-  bankName       String?
-  
+  bankAccount      String?
+  bankName         String?
+
   // Repayment
   totalRepaid    Float     @default(0)
   nextPaymentDue DateTime?
   isFullyPaid    Boolean   @default(false)
   closedAt       DateTime?
-  
+
   // Metadata
-  createdBy      String
-  creator        User        @relation(fields: [createdBy], references: [id])
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  createdBy String
+  creator   User     @relation(fields: [createdBy], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("loans")
 }
 
 model LoanReview {
-  id           String   @id @default(cuid())
+  id            String          @id @default(cuid())
   applicationId String
-  application  LoanApplication @relation(fields: [applicationId], references: [id])
-  
-  reviewerId   String
-  reviewer     User     @relation(fields: [reviewerId], references: [id])
-  
-  reviewType   String   // "OFFICER_REVIEW" or "APPROVER_REVIEW"
-  status       String   // "APPROVED", "REJECTED", "REQUEST_INFO"
-  comments     String?
+  application   LoanApplication @relation(fields: [applicationId], references: [id])
+
+  reviewerId String
+  reviewer   User   @relation(fields: [reviewerId], references: [id])
+
+  reviewType     String // "OFFICER_REVIEW" or "APPROVER_REVIEW"
+  status         String // "APPROVED", "REJECTED", "REQUEST_INFO"
+  comments       String?
   recommendation String?
-  
-  reviewedAt   DateTime @default(now())
-  
+
+  reviewedAt DateTime @default(now())
+
   // Metadata
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("loan_reviews")
 }
 
 model InterestRate {
-  id        String   @id @default(cuid())
-  
+  id String @id @default(cuid())
+
   // Rate configuration
-  months    Int      // Loan duration in months
-  rate      Float    // Interest rate percentage (e.g., 27 for 27%)
-  
+  months Int // Loan duration in months
+  rate   Float // Interest rate percentage (e.g., 27 for 27%)
+
   // Admin who set this rate
-  adminId   String
-  admin     User     @relation(fields: [adminId], references: [id])
-  
+  adminId String
+  admin   User   @relation(fields: [adminId], references: [id])
+
   // Metadata
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
@@ -237,19 +239,19 @@ model InterestRate {
 }
 
 model Notification {
-  id        String           @id @default(cuid())
-  userId    String
-  user      User             @relation(fields: [userId], references: [id])
-  
-  type      NotificationType
-  title     String
-  message   String
-  isRead    Boolean          @default(false)
-  
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  type    NotificationType
+  title   String
+  message String
+  isRead  Boolean          @default(false)
+
   // Optional references
   loanApplicationId String?
   loanApplication   LoanApplication? @relation(fields: [loanApplicationId], references: [id])
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -257,19 +259,19 @@ model Notification {
 }
 
 model AuditLog {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  
-  action      String
-  entityType  String?
-  entityId    String?
-  oldValues   String?
-  newValues   String?
-  ipAddress   String?
-  userAgent   String?
-  
-  createdAt   DateTime @default(now())
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  action     String
+  entityType String?
+  entityId   String?
+  oldValues  String?
+  newValues  String?
+  ipAddress  String?
+  userAgent  String?
+
+  createdAt DateTime @default(now())
 
   @@map("audit_logs")
 }

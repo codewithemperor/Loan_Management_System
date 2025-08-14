@@ -3,7 +3,7 @@
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { UserRole } from "@prisma/client"
 import { SuspenseWrapper, StatsSuspense, TableSuspense } from "@/components/ui/suspense-wrapper"
-import { OfficerDashboard } from "./officer-dashboard"
+import OfficerDashboard  from "./officer-dashboard"
 
 export default function OfficerPage() {
   return (
