@@ -4,6 +4,14 @@ import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { LoanStatus, DocumentType, NotificationType, IdCardType } from "@prisma/client"
 import { z } from "zod"
+import { v2 as cloudinary } from 'cloudinary'
+
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+})
 
 const loanApplicationSchema = z.object({
   amount: z.number(),
@@ -22,19 +30,58 @@ const loanApplicationSchema = z.object({
   interestRate: z.number(),
 })
 
+// Helper function to upload file to Cloudinary
+async function uploadToCloudinary(file: File, folder: string = "loan_documents"): Promise<any> {
+  try {
+    // Convert File to Buffer
+    const bytes = await file.arrayBuffer()
+    const buffer = Buffer.from(bytes)
+
+    // Upload to Cloudinary
+    return new Promise((resolve, reject) => {
+      cloudinary.uploader.upload_stream(
+        {
+          folder: folder,
+          resource_type: "auto", // Automatically detect file type
+          allowed_formats: ["jpg", "jpeg", "png", "pdf"],
+          max_file_size: 10000000, // 10MB limit
+        },
+        (error, result) => {
+          if (error) {
+            console.error("Cloudinary upload error:", error)
+            reject(error)
+          } else {
+            resolve(result)
+          }
+        }
+      ).end(buffer)
+    })
+  } catch (error) {
+    console.error("Error preparing file for upload:", error)
+    throw error
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
+    console.log("=== Loan Application Submission Started ===")
+    
     const session = await getServerSession(authOptions)
     
     if (!session) {
+      console.log("No session found")
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     if (session.user.role !== "APPLICANT" && session.user.role !== "SUPER_ADMIN") {
+      console.log("User role not authorized:", session.user.role)
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
+    console.log("User authorized:", session.user.id, session.user.role)
+
     const formData = await request.formData()
+    console.log("Form data received, keys:", Array.from(formData.keys()))
     
     // Extract form data
     const applicationData = {
@@ -54,17 +101,37 @@ export async function POST(request: NextRequest) {
       interestRate: parseFloat(formData.get("interestRate") as string),
     }
 
+    console.log("Application data extracted:", {
+      amount: applicationData.amount,
+      duration: applicationData.duration,
+      employmentStatus: applicationData.employmentStatus,
+    })
+
     // Extract document files
     const idCardFile = formData.get("idCard") as File | null
     const proofOfFundsFile = formData.get("proofOfFunds") as File | null
     const idCardType = formData.get("idCardType") as IdCardType || null
 
+    console.log("Files extracted:", {
+      idCardFile: idCardFile ? { name: idCardFile.name, size: idCardFile.size } : null,
+      proofOfFundsFile: proofOfFundsFile ? { name: proofOfFundsFile.name, size: proofOfFundsFile.size } : null,
+      idCardType
+    })
+
     // Validate input
     const validatedData = loanApplicationSchema.parse(applicationData)
+    console.log("Data validation passed")
 
     // Validate required documents
     if (!idCardFile || !proofOfFundsFile || !idCardType) {
+      console.log("Missing required documents or ID card type")
       return NextResponse.json({ error: "Both ID card and proof of funds are required" }, { status: 400 })
+    }
+
+    // Validate Cloudinary configuration
+    if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+      console.error("Missing Cloudinary configuration")
+      return NextResponse.json({ error: "Server configuration error" }, { status: 500 })
     }
 
     // Get a random loan officer for assignment
@@ -79,17 +146,13 @@ export async function POST(request: NextRequest) {
     if (loanOfficers.length > 0) {
       const randomOfficer = loanOfficers[Math.floor(Math.random() * loanOfficers.length)]
       assignedOfficerId = randomOfficer.id
-    }
-
-    // Create Cloudinary upload signature
-    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
-    const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET
-
-    if (!cloudName || !uploadPreset) {
-      throw new Error("Cloudinary configuration is missing")
+      console.log("Assigned loan officer:", randomOfficer.name)
+    } else {
+      console.log("No active loan officers found")
     }
 
     // Create loan application first
+    console.log("Creating loan application in database...")
     const loanApplication = await db.loanApplication.create({
       data: {
         applicantId: session.user.id,
@@ -101,8 +164,8 @@ export async function POST(request: NextRequest) {
         employmentStatus: validatedData.employmentStatus,
         employerName: validatedData.employerName,
         workExperience: validatedData.workExperience,
-        phoneNumber: validatedData.phoneNumber,
-        address: validatedData.address,
+        // phoneNumber: validatedData.phoneNumber,
+        // address: validatedData.address,
         accountNumber: validatedData.accountNumber,
         bankName: validatedData.bankName,
         bvn: validatedData.bvn,
@@ -112,29 +175,17 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    console.log("Loan application created with ID:", loanApplication.id)
+
     const uploadedDocuments = []
 
     try {
+      console.log("Starting document uploads...")
+
       // Upload ID Card to Cloudinary
-      const idCardFormData = new FormData()
-      idCardFormData.append("file", idCardFile)
-      idCardFormData.append("upload_preset", uploadPreset)
-      idCardFormData.append("folder", "loan_documents")
-
-      const idCardResponse = await fetch(
-        `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
-        {
-          method: "POST",
-          body: idCardFormData,
-        }
-      )
-
-      if (!idCardResponse.ok) {
-        const errorData = await idCardResponse.json()
-        throw new Error(errorData.error?.message || "Failed to upload ID card")
-      }
-
-      const idCardCloudinaryData = await idCardResponse.json()
+      console.log("Uploading ID card...")
+      const idCardCloudinaryData = await uploadToCloudinary(idCardFile, "loan_documents/id_cards")
+      console.log("ID card uploaded successfully:", idCardCloudinaryData.secure_url)
 
       // Save ID card metadata to database
       const idCardDocument = await db.document.create({
@@ -150,27 +201,12 @@ export async function POST(request: NextRequest) {
       })
 
       uploadedDocuments.push(idCardDocument)
+      console.log("ID card document record created")
 
       // Upload Proof of Funds to Cloudinary
-      const proofOfFundsFormData = new FormData()
-      proofOfFundsFormData.append("file", proofOfFundsFile)
-      proofOfFundsFormData.append("upload_preset", uploadPreset)
-      proofOfFundsFormData.append("folder", "loan_documents")
-
-      const proofOfFundsResponse = await fetch(
-        `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
-        {
-          method: "POST",
-          body: proofOfFundsFormData,
-        }
-      )
-
-      if (!proofOfFundsResponse.ok) {
-        const errorData = await proofOfFundsResponse.json()
-        throw new Error(errorData.error?.message || "Failed to upload proof of funds")
-      }
-
-      const proofOfFundsCloudinaryData = await proofOfFundsResponse.json()
+      console.log("Uploading proof of funds...")
+      const proofOfFundsCloudinaryData = await uploadToCloudinary(proofOfFundsFile, "loan_documents/proof_of_funds")
+      console.log("Proof of funds uploaded successfully:", proofOfFundsCloudinaryData.secure_url)
 
       // Save proof of funds metadata to database
       const proofOfFundsDocument = await db.document.create({
@@ -185,11 +221,19 @@ export async function POST(request: NextRequest) {
       })
 
       uploadedDocuments.push(proofOfFundsDocument)
+      console.log("Proof of funds document record created")
 
     } catch (uploadError) {
-      // Clean up the loan application if document upload fails
-      await db.loanApplication.delete({ where: { id: loanApplication.id } })
       console.error("Document upload failed:", uploadError)
+      
+      // Clean up the loan application if document upload fails
+      try {
+        await db.loanApplication.delete({ where: { id: loanApplication.id } })
+        console.log("Cleaned up loan application due to upload failure")
+      } catch (cleanupError) {
+        console.error("Failed to cleanup loan application:", cleanupError)
+      }
+      
       return NextResponse.json(
         { error: uploadError instanceof Error ? uploadError.message : "Failed to upload documents" },
         { status: 500 }
@@ -198,35 +242,49 @@ export async function POST(request: NextRequest) {
 
     // Create notification for the assigned loan officer
     if (assignedOfficerId) {
-      await db.notification.create({
-        data: {
-          userId: assignedOfficerId,
-          type: NotificationType.APPLICATION_SUBMITTED,
-          title: "New Loan Application Assigned",
-          message: `A new loan application for ₦${validatedData.amount.toLocaleString()} has been assigned to you.`,
-          loanApplicationId: loanApplication.id,
-        },
-      })
+      try {
+        await db.notification.create({
+          data: {
+            userId: assignedOfficerId,
+            type: NotificationType.APPLICATION_SUBMITTED,
+            title: "New Loan Application Assigned",
+            message: `A new loan application for ₦${validatedData.amount.toLocaleString()} has been assigned to you.`,
+            loanApplicationId: loanApplication.id,
+          },
+        })
+        console.log("Notification created for loan officer")
+      } catch (notificationError) {
+        console.error("Failed to create notification:", notificationError)
+        // Don't fail the entire request for notification errors
+      }
     }
 
     // Log the action
-    await db.auditLog.create({
-      data: {
-        userId: session.user.id,
-        action: "SUBMIT_APPLICATION",
-        entityType: "LoanApplication",
-        entityId: loanApplication.id,
-        newValues: JSON.stringify({
-          amount: validatedData.amount,
-          purpose: validatedData.purpose,
-          duration: validatedData.duration,
-          accountNumber: validatedData.accountNumber,
-          bankName: validatedData.bankName,
-        }),
-        ipAddress: request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown",
-        userAgent: request.headers.get("user-agent") || "unknown",
-      },
-    })
+    try {
+      await db.auditLog.create({
+        data: {
+          userId: session.user.id,
+          action: "SUBMIT_APPLICATION",
+          entityType: "LoanApplication",
+          entityId: loanApplication.id,
+          newValues: JSON.stringify({
+            amount: validatedData.amount,
+            purpose: validatedData.purpose,
+            duration: validatedData.duration,
+            accountNumber: validatedData.accountNumber,
+            bankName: validatedData.bankName,
+          }),
+          ipAddress: request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown",
+          userAgent: request.headers.get("user-agent") || "unknown",
+        },
+      })
+      console.log("Audit log created")
+    } catch (auditError) {
+      console.error("Failed to create audit log:", auditError)
+      // Don't fail the entire request for audit log errors
+    }
+
+    console.log("=== Loan Application Submission Completed Successfully ===")
 
     return NextResponse.json({
       message: "Loan application submitted successfully",
@@ -237,6 +295,7 @@ export async function POST(request: NextRequest) {
     console.error("Error creating loan application:", error)
     
     if (error instanceof z.ZodError) {
+      console.log("Validation errors:", error.errors)
       return NextResponse.json(
         { error: "Validation error", details: error.errors },
         { status: 400 }

@@ -121,6 +121,10 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground font-montserrat;
+    @apply bg-background text-foreground font-montserrat overflow-hidden;
   }
+}
+
+body, html {
+  overflow: hidden;
 }

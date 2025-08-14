@@ -51,12 +51,13 @@ export default function ApplyForLoan() {
     handleSubmit,
     watch,
     setValue,
-    formState: { errors },
+    trigger,
+    formState: { errors, isValid },
   } = useForm<LoanApplicationFormData>({
     resolver: zodResolver(loanApplicationSchema),
+    mode: "onChange", // Enable real-time validation
     defaultValues: {
       amount: 100000,
-      duration: undefined,
       monthlyIncome: 50000,
       employmentStatus: "EMPLOYED",
       workExperience: 2,
@@ -66,17 +67,28 @@ export default function ApplyForLoan() {
   const watchedValues = watch()
 
   const onSubmit = async (data: LoanApplicationFormData) => {
+    console.log("Form submission started", { currentStep, data }) // Debug log
+    
     setIsSubmitting(true)
     setError(null)
     setSuccess(null)
     
     try {
       if (currentStep < 6) {
-        // Just move to next step, no API calls until final submission
+        // Just move to next step for steps 1-5
+        console.log("Moving to next step:", currentStep + 1)
         setCurrentStep(currentStep + 1)
       } else if (currentStep === 6) {
-        // Submit the complete application with all data and documents
+        // Final submission
+        console.log("Final submission with data:", data)
+        
+        // Validate required documents are uploaded
+        if (!idCardFile || !proofOfFundsFile) {
+          throw new Error("Please upload both ID card and proof of funds documents")
+        }
+
         const loanDetails = calculateLoanDetails(watchedValues.amount, watchedValues.duration)
+        console.log("Loan details calculated:", loanDetails)
         
         // Create form data with all fields and documents
         const formData = new FormData()
@@ -97,24 +109,27 @@ export default function ApplyForLoan() {
         if (data.nin) formData.append("nin", data.nin)
         formData.append("interestRate", loanDetails.annualRate.toString())
         
-        // Add documents if they exist
-        if (idCardFile) {
-          formData.append("idCard", idCardFile)
-          formData.append("idCardType", selectedIdCardType)
-        }
-        if (proofOfFundsFile) {
-          formData.append("proofOfFunds", proofOfFundsFile)
-        }
+        // Add documents
+        formData.append("idCard", idCardFile)
+        formData.append("idCardType", selectedIdCardType)
+        formData.append("proofOfFunds", proofOfFundsFile)
+
+        console.log("Sending request to /api/applications")
 
         const response = await fetch("/api/applications", {
           method: "POST",
           body: formData,
         })
 
+        console.log("Response status:", response.status)
+
         if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.error || "Failed to submit application")
+          const errorData = await response.json().catch(() => ({ error: "Unknown error occurred" }))
+          throw new Error(errorData.error || `Failed to submit application (${response.status})`)
         }
+
+        const responseData = await response.json()
+        console.log("Success response:", responseData)
 
         setSuccess("Loan application submitted successfully! Your application is now under review.")
         // Redirect to applications page after a short delay
@@ -123,15 +138,40 @@ export default function ApplyForLoan() {
         }, 2000)
       }
     } catch (err) {
+      console.error("Submission error:", err)
       setError(err instanceof Error ? err.message : "Failed to submit application")
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  const handleNextStep = () => {
-    if (currentStep < 6 && canProceedToNextStep()) {
+  const handleNextStep = async () => {
+    console.log("Next step clicked, current step:", currentStep)
+    
+    // Trigger validation for current step
+    const stepValid = await validateCurrentStep()
+    
+    if (stepValid && currentStep < 6) {
       setCurrentStep(currentStep + 1)
+    }
+  }
+
+  const validateCurrentStep = async (): Promise<boolean> => {
+    switch (currentStep) {
+      case 1:
+        return await trigger(["phoneNumber", "address"])
+      case 2:
+        return await trigger(["amount", "purpose", "duration"])
+      case 3:
+        return await trigger(["monthlyIncome", "employmentStatus"])
+      case 4:
+        return true // Documents step just shows information
+      case 5:
+        return await trigger(["accountNumber", "bankName"])
+      case 6:
+        return idCardFile !== null && proofOfFundsFile !== null
+      default:
+        return false
     }
   }
 
@@ -141,9 +181,16 @@ export default function ApplyForLoan() {
       if (!response.ok) throw new Error("Failed to fetch interest rates")
       
       const data = await response.json()
-      setInterestRates(data.interestRates)
+      setInterestRates(data.interestRates || [])
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to fetch interest rates")
+      console.error("Failed to fetch interest rates:", err)
+      // Set default rates if API fails
+      setInterestRates([
+        { months: 6, rate: 15.5 },
+        { months: 12, rate: 16.0 },
+        { months: 18, rate: 16.5 },
+        { months: 24, rate: 17.0 }
+      ])
     } finally {
       setLoadingRates(false)
     }
@@ -166,9 +213,21 @@ export default function ApplyForLoan() {
   }
 
   const calculateLoanDetails = (amount: number, duration: number) => {
+    if (!amount || !duration) {
+      return {
+        principal: 0,
+        annualRate: 0,
+        monthlyRate: 0,
+        totalInterest: 0,
+        totalRepayment: 0,
+        monthlyPayment: 0,
+        duration: 0
+      }
+    }
+
     const annualRate = getInterestRate(duration)
     const monthlyRate = annualRate / 100 / 12
-    const totalInterest = amount * annualRate / 100 * (duration / 12)
+    const totalInterest = amount * (annualRate / 100) 
     const totalRepayment = amount + totalInterest
     const monthlyPayment = totalRepayment / duration
 
@@ -205,11 +264,11 @@ export default function ApplyForLoan() {
       case 3:
         return watchedValues.monthlyIncome && watchedValues.employmentStatus
       case 4:
-        return true // Documents step now just shows information
+        return true
       case 5:
         return watchedValues.accountNumber && watchedValues.bankName
       case 6:
-        return idCardFile && proofOfFundsFile // Both documents required for final submission
+        return idCardFile && proofOfFundsFile
       default:
         return false
     }
@@ -217,7 +276,7 @@ export default function ApplyForLoan() {
 
   return (
     <DashboardLayout requiredRoles={[UserRole.APPLICANT, UserRole.SUPER_ADMIN]}>
-      <div className="max-w-4xl mx-auto space-y-6">
+      <div className="max-w-4xl mx-auto overflow-hidden space-y-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Apply for Loan</h1>
           <p className="text-muted-foreground">
@@ -227,12 +286,14 @@ export default function ApplyForLoan() {
 
         {error && (
           <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
 
         {success && (
           <Alert>
+            <CheckCircle className="h-4 w-4" />
             <AlertDescription>{success}</AlertDescription>
           </Alert>
         )}
@@ -342,7 +403,7 @@ export default function ApplyForLoan() {
                   </div>
                   <div>
                     <Label htmlFor="duration">Duration (months)</Label>
-                    <Select onValueChange={(value) => setValue("duration", parseInt(value))}>
+                    <Select onValueChange={(value) => setValue("duration", parseInt(value), { shouldValidate: true })}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select loan duration" />
                       </SelectTrigger>
@@ -387,7 +448,7 @@ export default function ApplyForLoan() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="employmentStatus">Employment Status</Label>
-                    <Select onValueChange={(value) => setValue("employmentStatus", value as any)}>
+                    <Select onValueChange={(value) => setValue("employmentStatus", value as any, { shouldValidate: true })}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select employment status" />
                       </SelectTrigger>
@@ -760,6 +821,7 @@ export default function ApplyForLoan() {
                         id="idCardInput"
                       />
                       <Button
+                        type="button"
                         onClick={() => document.getElementById('idCardInput')?.click()}
                         disabled={isSubmitting}
                         className="w-full"
@@ -768,6 +830,18 @@ export default function ApplyForLoan() {
                         <Upload className="h-4 w-4 mr-2" />
                         {idCardFile ? idCardFile.name : "Select ID Card"}
                       </Button>
+                      {idCardFile && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setIdCardFile(null)}
+                          className="mt-2 text-red-500 hover:text-red-700"
+                        >
+                          <X className="h-4 w-4 mr-1" />
+                          Remove
+                        </Button>
+                      )}
                     </div>
 
                     <div>
@@ -781,6 +855,7 @@ export default function ApplyForLoan() {
                         id="proofOfFundsInput"
                       />
                       <Button
+                        type="button"
                         onClick={() => document.getElementById('proofOfFundsInput')?.click()}
                         disabled={isSubmitting}
                         className="w-full"
@@ -789,11 +864,24 @@ export default function ApplyForLoan() {
                         <Upload className="h-4 w-4 mr-2" />
                         {proofOfFundsFile ? proofOfFundsFile.name : "Select Proof of Funds"}
                       </Button>
+                      {proofOfFundsFile && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setProofOfFundsFile(null)}
+                          className="mt-2 text-red-500 hover:text-red-700"
+                        >
+                          <X className="h-4 w-4 mr-1" />
+                          Remove
+                        </Button>
+                      )}
                     </div>
                   </div>
 
                   {(!idCardFile || !proofOfFundsFile) && (
                     <Alert>
+                      <AlertCircle className="h-4 w-4" />
                       <AlertDescription>
                         Please upload both required documents (ID Card and Proof of Funds) to submit your application.
                       </AlertDescription>
@@ -810,29 +898,26 @@ export default function ApplyForLoan() {
               type="button"
               variant="outline"
               onClick={() => setCurrentStep(currentStep - 1)}
-              disabled={currentStep === 1}
+              disabled={currentStep === 1 || isSubmitting}
             >
               Previous
             </Button>
             
             <div className="space-x-2">
-              {currentStep < steps.length ? (
+              {currentStep < 6 ? (
                 <Button
-                  type={currentStep === 6 ? "submit" : "button"}
-                  onClick={currentStep < 6 ? handleNextStep : undefined}
+                  type="button"
+                  onClick={handleNextStep}
                   disabled={!canProceedToNextStep() || isSubmitting}
                 >
-                  {currentStep === 6 ? (isSubmitting ? "Submitting Application..." : "Submit Application") : "Next"}
+                  Next
                 </Button>
               ) : (
                 <Button
-                  type="button"
-                  onClick={() => {
-                    // Redirect to applications page
-                    window.location.href = "/applicant/applications"
-                  }}
+                  type="submit"
+                  disabled={isSubmitting || !idCardFile || !proofOfFundsFile}
                 >
-                  View Applications
+                  {isSubmitting ? "Submitting..." : "Submit Application"}
                 </Button>
               )}
             </div>

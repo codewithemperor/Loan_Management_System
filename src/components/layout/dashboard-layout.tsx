@@ -45,7 +45,7 @@ export function DashboardLayout({ children, requiredRoles }: DashboardLayoutProp
   }
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex h-screen bg-background overflow-hidden">
       <Sidebar userRole={session.user.role} />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header user={session.user} />

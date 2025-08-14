@@ -194,6 +194,7 @@ async function main() {
       bankAccount: '1234567890',
       bankName: 'First Bank of Nigeria',
       createdBy: admin.id,
+      totalRepayment: 220000, 
     },
   })
 
@@ -258,6 +259,42 @@ async function main() {
         newValues: JSON.stringify({
           status: 'UNDER_REVIEW',
         }),
+      },
+    ],
+  })
+
+  // Create sample interest rates
+  await prisma.interestRate.createMany({
+    data: [
+      {
+        months: 6,
+        rate: 25.0,
+        adminId: admin.id,
+      },
+      {
+        months: 12,
+        rate: 27.0,
+        adminId: admin.id,
+      },
+      {
+        months: 24,
+        rate: 30.0,
+        adminId: admin.id,
+      },
+      {
+        months: 36,
+        rate: 32.0,
+        adminId: admin.id,
+      },
+      {
+        months: 48,
+        rate: 35.0,
+        adminId: admin.id,
+      },
+      {
+        months: 60,
+        rate: 38.0,
+        adminId: admin.id,
       },
     ],
   })
