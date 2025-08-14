@@ -1,77 +1,84 @@
-import { db } from "@/lib/db"
+"use client"
+
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { FileText, Clock, CheckCircle, AlertTriangle, Eye, Edit } from "lucide-react"
 import Link from "next/link"
 
-async function getOfficerStats() {
-  try {
-    const [pending, reviewedToday, needAttention, totalReviewed] = await Promise.all([
-      db.loanApplication.count({ where: { status: "PENDING" } }),
-      db.loanApplication.count({ 
-        where: { 
-          status: { in: ["UNDER_REVIEW", "APPROVED", "REJECTED"] },
-          updatedAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) }
-        }
-      }),
-      db.loanApplication.count({ where: { status: "NEEDS_ATTENTION" } }),
-      db.loanApplication.count({ where: { status: "APPROVED" } })
-    ])
-
-    const totalApplications = await db.loanApplication.count()
-    const approvalRate = totalApplications > 0 ? Math.round((totalReviewed / totalApplications) * 100) : 0
-
-    return {
-      pending,
-      reviewedToday,
-      needAttention,
-      approvalRate
-    }
-  } catch (error) {
-    console.error("Error fetching officer stats:", error)
-    return {
-      pending: 0,
-      reviewedToday: 0,
-      needAttention: 0,
-      approvalRate: 0
-    }
-  }
+interface OfficerStats {
+  pending: number
+  reviewedToday: number
+  needAttention: number
+  approvalRate: number
 }
 
-async function getRecentApplications() {
-  try {
-    const applications = await db.loanApplication.findMany({
-      take: 5,
-      where: { status: { in: ["PENDING", "NEEDS_ATTENTION"] } },
-      orderBy: { createdAt: "desc" },
-      include: {
-        applicant: {
-          select: {
-            firstName: true,
-            lastName: true
-          }
+interface RecentApplication {
+  id: string
+  name: string
+  amount: string
+  purpose: string
+  submitted: string
+  priority: string
+}
+
+export default function OfficerDashboard() {
+  const [stats, setStats] = useState<OfficerStats>({
+    pending: 0,
+    reviewedToday: 0,
+    needAttention: 0,
+    approvalRate: 0
+  })
+  const [recentApplications, setRecentApplications] = useState<RecentApplication[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [statsResponse, recentResponse] = await Promise.all([
+          fetch("/api/officer/stats"),
+          fetch("/api/officer/recent-applications")
+        ])
+
+        if (statsResponse.ok) {
+          const statsData = await statsResponse.json()
+          setStats(statsData)
         }
+
+        if (recentResponse.ok) {
+          const recentData = await recentResponse.json()
+          setRecentApplications(recentData)
+        }
+      } catch (error) {
+        console.error("Error fetching dashboard data:", error)
+      } finally {
+        setLoading(false)
       }
-    })
+    }
 
-    return applications.map(app => ({
-      id: app.id,
-      name: `${app.applicant.firstName} ${app.applicant.lastName}`,
-      amount: `₦${app.amount.toLocaleString()}`,
-      purpose: app.purpose || "Not specified",
-      submitted: new Date(app.createdAt).toLocaleDateString(),
-      priority: app.status === "NEEDS_ATTENTION" ? "High" : "Medium"
-    }))
-  } catch (error) {
-    console.error("Error fetching recent applications:", error)
-    return []
+    fetchData()
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i}>
+              <CardHeader>
+                <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+              </CardHeader>
+              <CardContent>
+                <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    )
   }
-}
-
-export async function OfficerDashboard() {
-  const stats = await getOfficerStats()
-  const recentApplications = await getRecentApplications()
 
   return (
     <div className="space-y-6">

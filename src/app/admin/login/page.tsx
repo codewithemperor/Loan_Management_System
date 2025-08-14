@@ -141,9 +141,9 @@ export default function AdminLogin() {
             </form>
 
             <div className="text-center">
-              <Link href="/auth/signin" className="text-sm text-blue-600 hover:text-blue-700">
+              <p className="text-sm text-blue-600 hover:text-blue-700">
                 Having trouble? Contact support
-              </Link>
+              </p>
             </div>
 
             <div className="relative">
@@ -155,10 +155,15 @@ export default function AdminLogin() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/applicant/login">
+                  Applicant
+                </Link>
+              </Button>
               <Button variant="outline" size="sm" asChild>
                 <Link href="/officer/login">
-                  Loan Officer
+                  Officer
                 </Link>
               </Button>
               <Button variant="outline" size="sm" asChild>
@@ -166,6 +171,12 @@ export default function AdminLogin() {
                   Approver
                 </Link>
               </Button>
+            </div>
+
+            <div className="text-center">
+              <Link href="/" className="text-sm text-gray-600 hover:text-gray-700">
+                Back to Home
+              </Link>
             </div>
           </CardContent>
         </Card>

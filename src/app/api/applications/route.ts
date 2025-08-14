@@ -2,9 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { LoanStatus, DocumentType, NotificationType } from "@prisma/client"
-import { writeFile } from "fs/promises"
-import path from "path"
+import { LoanStatus, DocumentType, NotificationType, IdCardType } from "@prisma/client"
 import { z } from "zod"
 
 const loanApplicationSchema = z.object({
@@ -17,6 +15,11 @@ const loanApplicationSchema = z.object({
   workExperience: z.number().optional(),
   phoneNumber: z.string(),
   address: z.string(),
+  accountNumber: z.string(),
+  bankName: z.string(),
+  bvn: z.string().optional(),
+  nin: z.string().optional(),
+  interestRate: z.number(),
 })
 
 export async function POST(request: NextRequest) {
@@ -44,63 +47,27 @@ export async function POST(request: NextRequest) {
       workExperience: formData.get("workExperience") ? parseInt(formData.get("workExperience") as string) : null,
       phoneNumber: formData.get("phoneNumber") as string,
       address: formData.get("address") as string,
+      accountNumber: formData.get("accountNumber") as string,
+      bankName: formData.get("bankName") as string,
+      bvn: formData.get("bvn") as string || null,
+      nin: formData.get("nin") as string || null,
+      interestRate: parseFloat(formData.get("interestRate") as string),
     }
+
+    // Extract document files
+    const idCardFile = formData.get("idCard") as File | null
+    const proofOfFundsFile = formData.get("proofOfFunds") as File | null
+    const idCardType = formData.get("idCardType") as IdCardType || null
 
     // Validate input
     const validatedData = loanApplicationSchema.parse(applicationData)
 
-    // Create loan application
-    const loanApplication = await db.loanApplication.create({
-      data: {
-        applicantId: session.user.id,
-        amount: validatedData.amount,
-        purpose: validatedData.purpose,
-        duration: validatedData.duration,
-        interestRate: 15.5, // Default interest rate
-        monthlyIncome: validatedData.monthlyIncome,
-        employmentStatus: validatedData.employmentStatus,
-        employerName: validatedData.employerName,
-        workExperience: validatedData.workExperience,
-        status: LoanStatus.PENDING,
-      },
-    })
-
-    // Handle document uploads
-    const documentTypes = [
-      { id: "id_card", type: DocumentType.ID_CARD },
-      { id: "passport", type: DocumentType.PASSPORT },
-      { id: "bank_statement", type: DocumentType.BANK_STATEMENT },
-      { id: "pay_slip", type: DocumentType.PAY_SLIP },
-      { id: "utility_bill", type: DocumentType.UTILITY_BILL },
-      { id: "business_registration", type: DocumentType.BUSINESS_REGISTRATION },
-    ]
-
-    const uploadedDocuments = []
-
-    for (const docType of documentTypes) {
-      const file = formData.get(`documents_${docType.id}`) as File | null
-      
-      if (file && file.size > 0) {
-        // Create upload directory if it doesn't exist
-        const uploadDir = path.join(process.cwd(), "public", "uploads", "documents")
-        await writeFile(path.join(uploadDir, `${loanApplication.id}_${docType.id}_${file.name}`), Buffer.from(await file.arrayBuffer()))
-        
-        const document = await db.document.create({
-          data: {
-            applicationId: loanApplication.id,
-            type: docType.type,
-            fileName: file.name,
-            filePath: `/uploads/documents/${loanApplication.id}_${docType.id}_${file.name}`,
-            fileSize: file.size,
-            mimeType: file.type,
-          },
-        })
-        
-        uploadedDocuments.push(document)
-      }
+    // Validate required documents
+    if (!idCardFile || !proofOfFundsFile || !idCardType) {
+      return NextResponse.json({ error: "Both ID card and proof of funds are required" }, { status: 400 })
     }
 
-    // Create notification for loan officers
+    // Get a random loan officer for assignment
     const loanOfficers = await db.user.findMany({
       where: {
         role: "LOAN_OFFICER",
@@ -108,13 +75,135 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    for (const officer of loanOfficers) {
+    let assignedOfficerId = null
+    if (loanOfficers.length > 0) {
+      const randomOfficer = loanOfficers[Math.floor(Math.random() * loanOfficers.length)]
+      assignedOfficerId = randomOfficer.id
+    }
+
+    // Create Cloudinary upload signature
+    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
+    const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET
+
+    if (!cloudName || !uploadPreset) {
+      throw new Error("Cloudinary configuration is missing")
+    }
+
+    // Create loan application first
+    const loanApplication = await db.loanApplication.create({
+      data: {
+        applicantId: session.user.id,
+        amount: validatedData.amount,
+        purpose: validatedData.purpose,
+        duration: validatedData.duration,
+        interestRate: validatedData.interestRate,
+        monthlyIncome: validatedData.monthlyIncome,
+        employmentStatus: validatedData.employmentStatus,
+        employerName: validatedData.employerName,
+        workExperience: validatedData.workExperience,
+        phoneNumber: validatedData.phoneNumber,
+        address: validatedData.address,
+        accountNumber: validatedData.accountNumber,
+        bankName: validatedData.bankName,
+        bvn: validatedData.bvn,
+        nin: validatedData.nin,
+        status: LoanStatus.PENDING,
+        assignedOfficerId,
+      },
+    })
+
+    const uploadedDocuments = []
+
+    try {
+      // Upload ID Card to Cloudinary
+      const idCardFormData = new FormData()
+      idCardFormData.append("file", idCardFile)
+      idCardFormData.append("upload_preset", uploadPreset)
+      idCardFormData.append("folder", "loan_documents")
+
+      const idCardResponse = await fetch(
+        `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+        {
+          method: "POST",
+          body: idCardFormData,
+        }
+      )
+
+      if (!idCardResponse.ok) {
+        const errorData = await idCardResponse.json()
+        throw new Error(errorData.error?.message || "Failed to upload ID card")
+      }
+
+      const idCardCloudinaryData = await idCardResponse.json()
+
+      // Save ID card metadata to database
+      const idCardDocument = await db.document.create({
+        data: {
+          applicationId: loanApplication.id,
+          type: DocumentType.ID_CARD,
+          fileName: idCardFile.name,
+          filePath: idCardCloudinaryData.secure_url,
+          fileSize: idCardFile.size,
+          mimeType: idCardFile.type,
+          idCardType: idCardType
+        }
+      })
+
+      uploadedDocuments.push(idCardDocument)
+
+      // Upload Proof of Funds to Cloudinary
+      const proofOfFundsFormData = new FormData()
+      proofOfFundsFormData.append("file", proofOfFundsFile)
+      proofOfFundsFormData.append("upload_preset", uploadPreset)
+      proofOfFundsFormData.append("folder", "loan_documents")
+
+      const proofOfFundsResponse = await fetch(
+        `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+        {
+          method: "POST",
+          body: proofOfFundsFormData,
+        }
+      )
+
+      if (!proofOfFundsResponse.ok) {
+        const errorData = await proofOfFundsResponse.json()
+        throw new Error(errorData.error?.message || "Failed to upload proof of funds")
+      }
+
+      const proofOfFundsCloudinaryData = await proofOfFundsResponse.json()
+
+      // Save proof of funds metadata to database
+      const proofOfFundsDocument = await db.document.create({
+        data: {
+          applicationId: loanApplication.id,
+          type: DocumentType.PROOF_OF_FUNDS,
+          fileName: proofOfFundsFile.name,
+          filePath: proofOfFundsCloudinaryData.secure_url,
+          fileSize: proofOfFundsFile.size,
+          mimeType: proofOfFundsFile.type
+        }
+      })
+
+      uploadedDocuments.push(proofOfFundsDocument)
+
+    } catch (uploadError) {
+      // Clean up the loan application if document upload fails
+      await db.loanApplication.delete({ where: { id: loanApplication.id } })
+      console.error("Document upload failed:", uploadError)
+      return NextResponse.json(
+        { error: uploadError instanceof Error ? uploadError.message : "Failed to upload documents" },
+        { status: 500 }
+      )
+    }
+
+    // Create notification for the assigned loan officer
+    if (assignedOfficerId) {
       await db.notification.create({
         data: {
-          userId: officer.id,
+          userId: assignedOfficerId,
           type: NotificationType.APPLICATION_SUBMITTED,
-          title: "New Loan Application",
-          message: `A new loan application for ₦${validatedData.amount.toLocaleString()} has been submitted.`,
+          title: "New Loan Application Assigned",
+          message: `A new loan application for ₦${validatedData.amount.toLocaleString()} has been assigned to you.`,
           loanApplicationId: loanApplication.id,
         },
       })
@@ -131,6 +220,8 @@ export async function POST(request: NextRequest) {
           amount: validatedData.amount,
           purpose: validatedData.purpose,
           duration: validatedData.duration,
+          accountNumber: validatedData.accountNumber,
+          bankName: validatedData.bankName,
         }),
         ipAddress: request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown",
         userAgent: request.headers.get("user-agent") || "unknown",
@@ -153,7 +244,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: error instanceof Error ? error.message : "Internal server error" },
       { status: 500 }
     )
   }
@@ -180,12 +271,8 @@ export async function GET(request: NextRequest) {
     if (session.user.role === "APPLICANT") {
       whereClause.applicantId = session.user.id
     } else if (session.user.role === "LOAN_OFFICER") {
-      // Loan officers can see applications assigned to them or all pending applications
-      whereClause.OR = [
-        { status: LoanStatus.PENDING },
-        { status: LoanStatus.UNDER_REVIEW },
-        { reviews: { some: { reviewerId: session.user.id } } }
-      ]
+      // Loan officers can only see applications assigned to them
+      whereClause.assignedOfficerId = session.user.id
     } else if (session.user.role === "APPROVER") {
       // Approvers can see applications that have been reviewed by officers
       whereClause.status = { in: [LoanStatus.UNDER_REVIEW, LoanStatus.ADDITIONAL_INFO_REQUESTED] }
@@ -206,6 +293,13 @@ export async function GET(request: NextRequest) {
               name: true,
               email: true,
               phoneNumber: true,
+            },
+          },
+          assignedOfficer: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
             },
           },
           documents: {

@@ -1,66 +1,83 @@
-import { db } from "@/lib/db"
+"use client"
+
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { CreditCard, Users, FileText, TrendingUp, AlertCircle, CheckCircle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 
-async function getAdminStats() {
-  try {
-    const [applications, loans, users] = await Promise.all([
-      db.loanApplication.count(),
-      db.loan.count(),
-      db.user.count()
-    ])
-
-    return {
-      totalApplications: applications,
-      activeLoans: loans,
-      totalUsers: users,
-      revenue: 45231 // This would be calculated from actual loan data
-    }
-  } catch (error) {
-    console.error("Error fetching admin stats:", error)
-    return {
-      totalApplications: 0,
-      activeLoans: 0,
-      totalUsers: 0,
-      revenue: 0
-    }
-  }
+interface AdminStats {
+  totalApplications: number
+  activeLoans: number
+  totalUsers: number
+  revenue: number
 }
 
-async function getRecentApplications() {
-  try {
-    const applications = await db.loanApplication.findMany({
-      take: 5,
-      orderBy: { createdAt: "desc" },
-      include: {
-        applicant: {
-          select: {
-            firstName: true,
-            lastName: true
-          }
+interface RecentApplication {
+  id: string
+  name: string
+  amount: string
+  status: string
+  time: string
+}
+
+export default function AdminDashboard() {
+  const [stats, setStats] = useState<AdminStats>({
+    totalApplications: 0,
+    activeLoans: 0,
+    totalUsers: 0,
+    revenue: 0
+  })
+  const [recentApplications, setRecentApplications] = useState<RecentApplication[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [statsResponse, recentResponse] = await Promise.all([
+          fetch("/api/admin/stats"),
+          fetch("/api/admin/recent-applications")
+        ])
+
+        if (statsResponse.ok) {
+          const statsData = await statsResponse.json()
+          setStats(statsData)
         }
+
+        if (recentResponse.ok) {
+          const recentData = await recentResponse.json()
+          setRecentApplications(recentData)
+        }
+      } catch (error) {
+        console.error("Error fetching dashboard data:", error)
+      } finally {
+        setLoading(false)
       }
-    })
+    }
 
-    return applications.map(app => ({
-      id: app.id,
-      name: `${app.applicant.firstName} ${app.applicant.lastName}`,
-      amount: `₦${app.amount.toLocaleString()}`,
-      status: app.status,
-      time: new Date(app.createdAt).toLocaleDateString()
-    }))
-  } catch (error) {
-    console.error("Error fetching recent applications:", error)
-    return []
+    fetchData()
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i}>
+              <CardHeader>
+                <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+              </CardHeader>
+              <CardContent>
+                <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    )
   }
-}
-
-export async function AdminDashboard() {
-  const stats = await getAdminStats()
-  const recentApplications = await getRecentApplications()
 
   return (
     <div className="space-y-6">

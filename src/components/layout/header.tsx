@@ -90,7 +90,10 @@ export function Header({ user }: HeaderProps) {
               <DropdownMenuItem>Settings</DropdownMenuItem>
               <DropdownMenuItem>Help</DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => signOut()}>
+              <DropdownMenuItem onClick={() => {
+                const role = user.role.toLowerCase().replace('_', '')
+                signOut({ callbackUrl: `/${role}/login` })
+              }}>
                 Log out
               </DropdownMenuItem>
             </DropdownMenuContent>

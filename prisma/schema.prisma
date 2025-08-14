@@ -37,6 +37,17 @@ enum DocumentType {
   TAX_CLEARANCE
   COLLATERAL_DOCUMENT
   OTHER
+  PROOF_OF_FUNDS
+  NATIONAL_ID
+  VOTERS_CARD
+  INTERNATIONAL_PASSPORT
+}
+
+enum IdCardType {
+  NATIONAL_ID
+  VOTERS_CARD
+  INTERNATIONAL_PASSPORT
+  DRIVERS_LICENSE
 }
 
 enum NotificationType {
@@ -67,10 +78,12 @@ model User {
 
   // Relations
   loanApplications LoanApplication[]
+  assignedApplications LoanApplication[] @relation("LoanOfficerAssignment")
   reviews          LoanReview[]
   auditLogs        AuditLog[]
   notifications    Notification[]
   createdLoans     Loan[]
+  interestRates    InterestRate[]
 
   @@map("users")
 }
@@ -89,6 +102,16 @@ model LoanApplication {
   employmentStatus String
   employerName    String?
   workExperience  Int?        // in years
+  
+  // Account Details
+  accountNumber   String?
+  bankName        String?
+  bvn             String?     // Bank Verification Number
+  nin             String?     // National Identification Number
+  
+  // Assignment
+  assignedOfficerId String?
+  assignedOfficer   User?     @relation("LoanOfficerAssignment", fields: [assignedOfficerId], references: [id])
   
   // Status Tracking
   status          LoanStatus  @default(PENDING)
@@ -128,6 +151,9 @@ model Document {
   mimeType     String
   uploadedAt   DateTime     @default(now())
   
+  // For ID card documents
+  idCardType   IdCardType?
+  
   // Metadata
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
@@ -146,6 +172,7 @@ model Loan {
   interestRate   Float
   duration       Int       // in months
   monthlyPayment Float
+  totalRepayment Float     // Total amount to be paid (principal + interest)
   
   // Disbursement
   disbursementDate DateTime?
@@ -187,6 +214,26 @@ model LoanReview {
   updatedAt    DateTime @updatedAt
 
   @@map("loan_reviews")
+}
+
+model InterestRate {
+  id        String   @id @default(cuid())
+  
+  // Rate configuration
+  months    Int      // Loan duration in months
+  rate      Float    // Interest rate percentage (e.g., 27 for 27%)
+  
+  // Admin who set this rate
+  adminId   String
+  admin     User     @relation(fields: [adminId], references: [id])
+  
+  // Metadata
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([months, adminId])
+  @@map("interest_rates")
 }
 
 model Notification {

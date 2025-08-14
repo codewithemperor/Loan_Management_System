@@ -27,8 +27,10 @@ const navigation = {
   [UserRole.SUPER_ADMIN]: [
     { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
     { name: "Users", href: "/admin/users", icon: Users },
+    { name: "Staff Management", href: "/admin/staff", icon: Shield },
     { name: "All Applications", href: "/admin/applications", icon: FileText },
     { name: "Loans", href: "/admin/loans", icon: CreditCard },
+    { name: "Interest Rates", href: "/admin/interest-rates", icon: Settings },
     { name: "Analytics", href: "/admin/analytics", icon: CheckCircle },
     { name: "Settings", href: "/admin/settings", icon: Settings },
   ],

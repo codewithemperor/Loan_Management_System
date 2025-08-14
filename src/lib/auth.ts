@@ -65,8 +65,7 @@ export const authOptions: NextAuthOptions = {
     }
   },
   pages: {
-    signIn: "/auth/signin",
-    signUp: "/auth/signup"
+    // Remove default signIn page as we use role-specific login pages
   },
   secret: process.env.NEXTAUTH_SECRET,
 }

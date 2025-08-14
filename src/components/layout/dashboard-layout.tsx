@@ -22,7 +22,7 @@ export function DashboardLayout({ children, requiredRoles }: DashboardLayoutProp
     if (status === "loading") return
 
     if (!session) {
-      router.push("/auth/signin")
+      router.push("/")
       return
     }
 

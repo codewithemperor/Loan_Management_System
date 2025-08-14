@@ -81,6 +81,91 @@ export async function GET(
   }
 }
 
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions)
+    
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const body = await request.json()
+    const { accountNumber, bankName, bvn, nin } = body
+
+    // Check if application exists
+    const application = await db.loanApplication.findUnique({
+      where: { id: params.id },
+    })
+
+    if (!application) {
+      return NextResponse.json({ error: "Application not found" }, { status: 404 })
+    }
+
+    // Check permissions - only applicant can update their own account details
+    if (session.user.role === "APPLICANT" && application.applicantId !== session.user.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+
+    // Update application with account details
+    const updatedApplication = await db.loanApplication.update({
+      where: { id: params.id },
+      data: {
+        ...(accountNumber && { accountNumber }),
+        ...(bankName && { bankName }),
+        ...(bvn && { bvn }),
+        ...(nin && { nin }),
+      },
+      include: {
+        applicant: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    })
+
+    // Log the action
+    await db.auditLog.create({
+      data: {
+        userId: session.user.id,
+        action: "UPDATE_APPLICATION_ACCOUNT_DETAILS",
+        entityType: "LoanApplication",
+        entityId: params.id,
+        oldValues: JSON.stringify({
+          accountNumber: application.accountNumber,
+          bankName: application.bankName,
+          bvn: application.bvn,
+          nin: application.nin,
+        }),
+        newValues: JSON.stringify({
+          accountNumber: updatedApplication.accountNumber,
+          bankName: updatedApplication.bankName,
+          bvn: updatedApplication.bvn,
+          nin: updatedApplication.nin,
+        }),
+        ipAddress: request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown",
+        userAgent: request.headers.get("user-agent") || "unknown",
+      },
+    })
+
+    return NextResponse.json({
+      message: "Account details updated successfully",
+      application: updatedApplication,
+    })
+  } catch (error) {
+    console.error("Error updating application account details:", error)
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    )
+  }
+}
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }

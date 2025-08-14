@@ -141,9 +141,9 @@ export default function ApplicantLogin() {
             </form>
 
             <div className="text-center">
-              <Link href="/auth/signin" className="text-sm text-blue-600 hover:text-blue-700">
-                Forgot your password?
-              </Link>
+              <p className="text-sm text-blue-600 hover:text-blue-700">
+                Forgot your password? Contact support
+              </p>
             </div>
 
             <div className="relative">
@@ -155,16 +155,15 @@ export default function ApplicantLogin() {
               </div>
             </div>
 
-            <Button variant="outline" className="w-full h-11" asChild>
-              <Link href="/auth/register">
-                <Mail className="h-4 w-4 mr-2" />
-                Create Account
-              </Link>
-            </Button>
+            <div className="text-center">
+              <p className="text-sm text-gray-600 hover:text-gray-700">
+                Contact administrator to create account
+              </p>
+            </div>
 
             <div className="text-center">
-              <Link href="/auth/signin" className="text-sm text-gray-600 hover:text-gray-700">
-                Having trouble? Contact support
+              <Link href="/" className="text-sm text-gray-600 hover:text-gray-700">
+                Back to Home
               </Link>
             </div>
           </CardContent>

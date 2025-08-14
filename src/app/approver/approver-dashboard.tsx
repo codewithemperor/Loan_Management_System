@@ -1,98 +1,85 @@
-import { db } from "@/lib/db"
+"use client"
+
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { CheckCircle, Clock, XCircle, CreditCard, Eye, ThumbsUp, ThumbsDown } from "lucide-react"
 import Link from "next/link"
 
-async function getApproverStats() {
-  try {
-    const [pending, approvedToday, rejectedToday, totalApprovedAmount] = await Promise.all([
-      db.loanApplication.count({ where: { status: "UNDER_REVIEW" } }),
-      db.loanApplication.count({ 
-        where: { 
-          status: "APPROVED",
-          updatedAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) }
-        }
-      }),
-      db.loanApplication.count({ 
-        where: { 
-          status: "REJECTED",
-          updatedAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) }
-        }
-      }),
-      db.loan.aggregate({
-        _sum: { amount: true },
-        where: { status: "APPROVED" }
-      })
-    ])
-
-    return {
-      pending,
-      approvedToday,
-      rejectedToday,
-      totalApprovedAmount: totalApprovedAmount._sum.amount || 0
-    }
-  } catch (error) {
-    console.error("Error fetching approver stats:", error)
-    return {
-      pending: 0,
-      approvedToday: 0,
-      rejectedToday: 0,
-      totalApprovedAmount: 0
-    }
-  }
+interface ApproverStats {
+  pending: number
+  approvedToday: number
+  rejectedToday: number
+  totalApprovedAmount: number
 }
 
-async function getPendingApplications() {
-  try {
-    const applications = await db.loanApplication.findMany({
-      take: 5,
-      where: { status: "UNDER_REVIEW" },
-      orderBy: { createdAt: "desc" },
-      include: {
-        applicant: {
-          select: {
-            firstName: true,
-            lastName: true
-          }
-        },
-        reviews: {
-          take: 1,
-          orderBy: { createdAt: "desc" },
-          include: {
-            reviewer: {
-              select: {
-                firstName: true,
-                lastName: true
-              }
-            }
-          }
+interface PendingApplication {
+  id: string
+  name: string
+  amount: string
+  purpose: string
+  officer: string
+  risk: string
+  recommended: string
+}
+
+export default function ApproverDashboard() {
+  const [stats, setStats] = useState<ApproverStats>({
+    pending: 0,
+    approvedToday: 0,
+    rejectedToday: 0,
+    totalApprovedAmount: 0
+  })
+  const [pendingApplications, setPendingApplications] = useState<PendingApplication[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [statsResponse, pendingResponse] = await Promise.all([
+          fetch("/api/approver/stats"),
+          fetch("/api/approver/pending")
+        ])
+
+        if (statsResponse.ok) {
+          const statsData = await statsResponse.json()
+          setStats(statsData)
         }
+
+        if (pendingResponse.ok) {
+          const pendingData = await pendingResponse.json()
+          setPendingApplications(pendingData)
+        }
+      } catch (error) {
+        console.error("Error fetching dashboard data:", error)
+      } finally {
+        setLoading(false)
       }
-    })
+    }
 
-    return applications.map(app => ({
-      id: app.id,
-      name: `${app.applicant.firstName} ${app.applicant.lastName}`,
-      amount: `₦${app.amount.toLocaleString()}`,
-      purpose: app.purpose || "Not specified",
-      officer: app.reviews[0]?.reviewer ? 
-        `${app.reviews[0].reviewer.firstName} ${app.reviews[0].reviewer.lastName}` : 
-        "Unknown",
-      risk: app.amount > 500000 ? "High" : app.amount > 200000 ? "Medium" : "Low",
-      recommended: app.reviews[0]?.status === "APPROVED" ? "Approve" : 
-                 app.reviews[0]?.status === "REJECTED" ? "Reject" : "Pending"
-    }))
-  } catch (error) {
-    console.error("Error fetching pending applications:", error)
-    return []
+    fetchData()
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i}>
+              <CardHeader>
+                <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+              </CardHeader>
+              <CardContent>
+                <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    )
   }
-}
-
-export async function ApproverDashboard() {
-  const stats = await getApproverStats()
-  const pendingApplications = await getPendingApplications()
 
   return (
     <div className="space-y-6">

@@ -141,9 +141,9 @@ export default function OfficerLogin() {
             </form>
 
             <div className="text-center">
-              <Link href="/auth/signin" className="text-sm text-green-600 hover:text-green-700">
+              <p className="text-sm text-green-600 hover:text-green-700">
                 Having trouble? Contact support
-              </Link>
+              </p>
             </div>
 
             <div className="relative">

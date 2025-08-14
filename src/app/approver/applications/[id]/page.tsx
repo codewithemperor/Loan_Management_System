@@ -119,6 +119,13 @@ export default async function ApplicationDetailPage({ params }: { params: { id: 
                 Review Application
               </Link>
             </Button>
+            {application.status === "Approved" && (
+              <form action={`/api/applications/${params.id}/disburse`} method="POST">
+                <Button size="sm" className="bg-green-600 hover:bg-green-700">
+                  Disburse Loan
+                </Button>
+              </form>
+            )}
           </div>
         </div>
 
