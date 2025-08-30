@@ -16,6 +16,7 @@ The project follows a structured development methodology:
 6. **Maintenance**: Regular updates and feature enhancements
 
 The system is designed with a focus on:
+
 - Security and compliance with financial regulations
 - User experience for both borrowers and loan officers
 - Scalability to handle growing loan portfolios
@@ -24,6 +25,7 @@ The system is designed with a focus on:
 ## Tech Stack
 
 ### Frontend
+
 - Next.js 14 (App Router)
 - React 18
 - TypeScript
@@ -32,30 +34,36 @@ The system is designed with a focus on:
 - Recharts for data visualization
 
 ### Backend
+
 - Node.js
 - Express.js
 - TypeScript
 
 ### Database
+
 - PostgreSQL
 - Prisma ORM
 
 ### Authentication
+
 - NextAuth.js
 - JWT tokens
 
 ### Payment Integration
+
 - Stripe API
 
 ### File Storage
+
 - AWS S3
 
 ### Deployment
-- Vercel (frontend)
-- Railway (backend)
-- AWS RDS (database)
+
+- Vercel (frontend & backend)
+- NEON (database)
 
 ### Development Tools
+
 - ESLint
 - Prettier
 - Husky (git hooks)
@@ -119,6 +127,7 @@ Loan_Management_System/
 The system uses PostgreSQL as the database with the following main entities:
 
 ### Users
+
 - `id`: Primary key
 - `email`: User's email address (unique)
 - `name`: User's full name
@@ -128,6 +137,7 @@ The system uses PostgreSQL as the database with the following main entities:
 - `updatedAt`: Timestamp of last update
 
 ### Customers
+
 - `id`: Primary key
 - `userId`: Foreign key to Users
 - `customerNumber`: Unique customer identifier
@@ -141,6 +151,7 @@ The system uses PostgreSQL as the database with the following main entities:
 - `updatedAt`: Timestamp of last update
 
 ### LoanProducts
+
 - `id`: Primary key
 - `name`: Product name (Personal Loan, Business Loan, etc.)
 - `description`: Product description
@@ -155,6 +166,7 @@ The system uses PostgreSQL as the database with the following main entities:
 - `updatedAt`: Timestamp of last update
 
 ### Loans
+
 - `id`: Primary key
 - `loanNumber`: Unique loan identifier
 - `customerId`: Foreign key to Customers
@@ -174,6 +186,7 @@ The system uses PostgreSQL as the database with the following main entities:
 - `updatedAt`: Timestamp of last update
 
 ### Repayments
+
 - `id`: Primary key
 - `loanId`: Foreign key to Loans
 - `amount`: Repayment amount
@@ -186,6 +199,7 @@ The system uses PostgreSQL as the database with the following main entities:
 - `updatedAt`: Timestamp of last update
 
 ### Collaterals
+
 - `id`: Primary key
 - `loanId`: Foreign key to Loans
 - `type`: Collateral type (property, vehicle, etc.)
@@ -196,6 +210,7 @@ The system uses PostgreSQL as the database with the following main entities:
 - `updatedAt`: Timestamp of last update
 
 ### Documents
+
 - `id`: Primary key
 - `customerId`: Foreign key to Customers (nullable)
 - `loanId`: Foreign key to Loans (nullable)
@@ -210,6 +225,7 @@ The system uses PostgreSQL as the database with the following main entities:
 - `updatedAt`: Timestamp of last update
 
 ### Notifications
+
 - `id`: Primary key
 - `userId`: Foreign key to Users
 - `title`: Notification title
@@ -221,19 +237,23 @@ The system uses PostgreSQL as the database with the following main entities:
 ## Installation
 
 1. Clone the repository:
+
 ```bash
 git clone https://github.com/codewithemperor/Loan_Management_System.git
 cd Loan_Management_System
 ```
 
 2. Install dependencies:
+
 ```bash
 npm install
 ```
 
 3. Set up environment variables:
+
    - Copy `.env.example` to `.env.local`
    - Fill in the required environment variables:
+
    ```
    DATABASE_URL="your_database_url"
    NEXTAUTH_URL="http://localhost:3000"
@@ -247,12 +267,14 @@ npm install
    ```
 
 4. Set up the database:
+
 ```bash
 npx prisma migrate dev
 npx prisma generate
 ```
 
 5. Run the development server:
+
 ```bash
 npm run dev
 ```
@@ -278,4 +300,3 @@ npm run dev
 - **Document Management**: Secure storage and verification of customer documents
 - **User Management**: Role-based access control
 - **Dashboard**: Real-time analytics and key metrics
-
