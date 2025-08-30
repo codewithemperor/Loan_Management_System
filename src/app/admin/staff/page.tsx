@@ -82,6 +82,7 @@ export default function StaffManagement() {
     role: "LOAN_OFFICER" as UserRole,
     phoneNumber: "",
     address: "",
+    password: "",
   })
 
   const fetchStaff = async () => {
@@ -152,6 +153,7 @@ export default function StaffManagement() {
           role: "LOAN_OFFICER",
           phoneNumber: "",
           address: "",
+          password: "",
         })
         fetchStaff()
       } else {
@@ -292,6 +294,19 @@ export default function StaffManagement() {
                     id="address"
                     value={newStaff.address}
                     onChange={(e) => setNewStaff(prev => ({ ...prev, address: e.target.value }))}
+                    className="col-span-3"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="password" className="text-right">
+                    Password
+                  </Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={newStaff.password}
+                    onChange={(e) => setNewStaff(prev => ({ ...prev, password: e.target.value }))}
+                    placeholder="Leave empty to generate auto"
                     className="col-span-3"
                   />
                 </div>

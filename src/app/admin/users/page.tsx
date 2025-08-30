@@ -81,6 +81,7 @@ export default function UserManagement() {
     role: "APPLICANT" as UserRole,
     phoneNumber: "",
     address: "",
+    password: "",
   })
 
   const fetchUsers = async () => {
@@ -89,6 +90,7 @@ export default function UserManagement() {
       const params = new URLSearchParams({
         page: currentPage.toString(),
         limit: "10",
+        role: "APPLICANT"
       })
 
       if (roleFilter !== "all") {
@@ -150,6 +152,7 @@ export default function UserManagement() {
           role: "APPLICANT",
           phoneNumber: "",
           address: "",
+          password: "",
         })
         fetchUsers()
       } else {
@@ -293,6 +296,19 @@ export default function UserManagement() {
                     className="col-span-3"
                   />
                 </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="password" className="text-right">
+                    Password
+                  </Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={newUser.password}
+                    onChange={(e) => setNewUser(prev => ({ ...prev, password: e.target.value }))}
+                    placeholder="Leave empty to generate auto"
+                    className="col-span-3"
+                  />
+                </div>
               </div>
               <div className="flex justify-end space-x-2">
                 <Button variant="outline" onClick={() => setShowAddUserDialog(false)}>
@@ -388,7 +404,7 @@ export default function UserManagement() {
                   />
                 </div>
               </div>
-              <div className="md:w-48">
+              {/* <div className="md:w-48">
                 <Select value={roleFilter} onValueChange={setRoleFilter}>
                   <SelectTrigger>
                     <SelectValue placeholder="Filter by role" />
@@ -401,7 +417,7 @@ export default function UserManagement() {
                     <SelectItem value={UserRole.APPLICANT}>Applicant</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
+              </div> */}
               <div className="md:w-48">
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
                   <SelectTrigger>

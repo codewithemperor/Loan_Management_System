@@ -19,6 +19,11 @@ export async function POST(request: NextRequest) {
     // Validate input
     const validatedData = registerSchema.parse(body)
     
+    // Split the name into first and last name
+    const nameParts = validatedData.name.trim().split(' ');
+    const firstName = nameParts.shift(); // First word is the first name
+    const lastName = nameParts.join(' '); // Remaining words are the last name
+
     // Check if user already exists
     const existingUser = await db.user.findUnique({
       where: { email: validatedData.email }
@@ -38,6 +43,8 @@ export async function POST(request: NextRequest) {
     const user = await db.user.create({
       data: {
         name: validatedData.name,
+        firstName: firstName,
+        lastName: lastName,
         email: validatedData.email,
         password: hashedPassword,
         role: UserRole.APPLICANT,

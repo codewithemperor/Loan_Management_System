@@ -30,12 +30,13 @@ export default withAuth(
       applicant: {
         role: UserRole.APPLICANT,
         loginPath: "/applicant/login",
+        registerPath: "/applicant/register",
         basePath: "/applicant",
         hasAccess: (userRole: string) => userRole === UserRole.APPLICANT || userRole === UserRole.SUPER_ADMIN
       }
     }
 
-    // Check each role's login and access rules
+    // Check each role's login and registration access rules
     for (const [roleName, config] of Object.entries(roleConfig)) {
       // If accessing the login page for this role
       if (pathname === config.loginPath) {
@@ -58,6 +59,30 @@ export default withAuth(
           return NextResponse.redirect(new URL("/", req.url))
         }
         // Allow access to login page if not logged in
+        return NextResponse.next()
+      }
+      
+      // If accessing the registration page for this role (only for applicant currently)
+      if (config.registerPath && pathname === config.registerPath) {
+        if (token) {
+          // User is already logged in, redirect to their appropriate dashboard
+          const userRole = token.role as string
+          
+          // Find which role this user belongs to and redirect to their dashboard
+          for (const [targetRoleName, targetConfig] of Object.entries(roleConfig)) {
+            if (userRole === targetConfig.role || 
+                (userRole === UserRole.SUPER_ADMIN && targetRoleName !== 'applicant') ||
+                (userRole === UserRole.LOAN_OFFICER && targetRoleName === 'officer') ||
+                (userRole === UserRole.APPROVER && targetRoleName === 'approver') ||
+                (userRole === UserRole.APPLICANT && targetRoleName === 'applicant')) {
+              return NextResponse.redirect(new URL(targetConfig.basePath, req.url))
+            }
+          }
+          
+          // If no specific role match, redirect to home
+          return NextResponse.redirect(new URL("/", req.url))
+        }
+        // Allow access to registration page if not logged in
         return NextResponse.next()
       }
       
@@ -90,8 +115,11 @@ export default withAuth(
       }
     }
 
-    // If not authenticated and not accessing a login page, redirect to home
-    if (!token && !Object.values(roleConfig).some(config => pathname === config.loginPath)) {
+    // If not authenticated and not accessing a login or registration page, redirect to home
+    if (!token && !Object.values(roleConfig).some(config => 
+      pathname === config.loginPath || 
+      (config.registerPath && pathname === config.registerPath)
+    )) {
       return NextResponse.redirect(new URL("/", req.url))
     }
 

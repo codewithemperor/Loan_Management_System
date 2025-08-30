@@ -9,6 +9,7 @@ import { db } from "@/lib/db"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { notFound } from "next/navigation"
+import DisburseButton from "@/components/DisburseButton"
 
 async function getApplicationDetails(applicationId: string) {
   try {
@@ -47,6 +48,7 @@ async function getApplicationDetails(applicationId: string) {
         },
         loan: {
           select: {
+            id: true,
             approvedAmount: true,
             disbursementAmount: true,
             monthlyPayment: true,
@@ -120,11 +122,7 @@ export default async function ApplicationDetailPage({ params }: { params: Promis
               </Link>
             </Button>
             {application.status === "Approved" && (
-              <form action={`/api/applications/${id}/disburse`} method="POST">
-                <Button size="sm" className="bg-green-600 hover:bg-green-700">
-                  Disburse Loan
-                </Button>
-              </form>
+              <DisburseButton applicationId={id} />
             )}
           </div>
         </div>

@@ -30,7 +30,6 @@ async function getLoanDetails(loanId: string) {
                 id: true,
                 type: true,
                 fileName: true,
-                status: true,
                 uploadedAt: true
               }
             },
@@ -282,13 +281,13 @@ export default async function LoanDetailPage({ params }: { params: { id: string 
                       <div>
                         <p className="font-medium">{document.fileName}</p>
                         <div className="flex items-center space-x-2 mt-1">
-                          <Badge className={
+                          {/* <Badge className={
                             document.status === "APPROVED" ? "bg-green-100 text-green-800" :
                             document.status === "REJECTED" ? "bg-red-100 text-red-800" :
                             "bg-yellow-100 text-yellow-800"
                           }>
                             {document.status}
-                          </Badge>
+                          </Badge> */}
                           <span className="text-xs text-muted-foreground">
                             {new Date(document.uploadedAt).toLocaleDateString()}
                           </span>

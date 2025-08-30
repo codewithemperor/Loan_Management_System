@@ -893,7 +893,7 @@ export default function ApplyForLoan() {
           )}
 
           {/* Navigation Buttons */}
-          <div className="flex justify-between">
+          <div className="flex mt-4 justify-between">
             <Button
               type="button"
               variant="outline"

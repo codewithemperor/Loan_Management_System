@@ -14,7 +14,8 @@ import {
   UserCheck,
   Shield,
   LogOut,
-  Menu
+  Menu,
+  DollarSign
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useSession, signOut } from "next-auth/react"
@@ -31,27 +32,23 @@ const navigation = {
     { name: "All Applications", href: "/admin/applications", icon: FileText },
     { name: "Loans", href: "/admin/loans", icon: CreditCard },
     { name: "Interest Rates", href: "/admin/interest-rates", icon: Settings },
-    { name: "Analytics", href: "/admin/analytics", icon: CheckCircle },
-    { name: "Settings", href: "/admin/settings", icon: Settings },
   ],
   [UserRole.LOAN_OFFICER]: [
     { name: "Dashboard", href: "/officer", icon: LayoutDashboard },
     { name: "Applications", href: "/officer/applications", icon: FileText },
-    { name: "My Reviews", href: "/officer/reviews", icon: CheckCircle },
-    { name: "Settings", href: "/officer/settings", icon: Settings },
+    { name: "My Reviews", href: "/officer/review", icon: CheckCircle },
   ],
   [UserRole.APPROVER]: [
     { name: "Dashboard", href: "/approver", icon: LayoutDashboard },
     { name: "Pending Approvals", href: "/approver/pending", icon: CheckCircle },
     { name: "Approved Loans", href: "/approver/approved", icon: CreditCard },
-    { name: "Settings", href: "/approver/settings", icon: Settings },
+    { name: "Disbursed Loans", href: "/approver/disbursed", icon: DollarSign },
   ],
   [UserRole.APPLICANT]: [
     { name: "Dashboard", href: "/applicant", icon: LayoutDashboard },
     { name: "Apply for Loan", href: "/applicant/apply", icon: FileText },
     { name: "My Applications", href: "/applicant/applications", icon: CreditCard },
     { name: "My Loans", href: "/applicant/loans", icon: UserCheck },
-    { name: "Settings", href: "/applicant/settings", icon: Settings },
   ],
 }
 

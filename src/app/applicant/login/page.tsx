@@ -31,6 +31,7 @@ export default function ApplicantLogin() {
         password,
         redirect: false,
       })
+      console.log(result)
 
       if (result?.error) {
         setError("Invalid email or password")
@@ -156,9 +157,9 @@ export default function ApplicantLogin() {
             </div>
 
             <div className="text-center">
-              <p className="text-sm text-gray-600 hover:text-gray-700">
-                Contact administrator to create account
-              </p>
+              <Link href="/applicant/register" className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                Create a new account
+              </Link>
             </div>
 
             <div className="text-center">
@@ -171,7 +172,7 @@ export default function ApplicantLogin() {
 
         <div className="text-center mt-6">
           <p className="text-xs text-gray-500">
-            © 2024 AOPE Credit. All rights reserved.
+            © {new Date().getFullYear()} AOPE Credit. All rights reserved.
           </p>
         </div>
       </div>

@@ -41,6 +41,11 @@ export default function RootLayout({
           {children}
           <Toaster />
         </SessionProvider>
+        {/* Footer */}
+        <footer className="bg-black/30 fixed bottom-0 start-0 end-0 text-gray-200 text-center text-xs py-2  z-10">
+          Design and code by <span className="font-semibold">Sulaimon Yusuf Ayomide</span> —{" "}
+          <span className="italic">codewithemperor</span>
+        </footer>
       </body>
     </html>
   );

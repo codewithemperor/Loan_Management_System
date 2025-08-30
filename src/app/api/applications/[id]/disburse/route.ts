@@ -3,6 +3,19 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 
+// Function to calculate monthly payment using simple interest (matches your frontend calculation)
+function calculateLoanDetails(amount: number, annualRate: number, duration: number) {
+  const totalInterest = amount * (annualRate / 100);
+  const totalRepayment = amount + totalInterest;
+  const monthlyPayment = totalRepayment / duration;
+  
+  return {
+    totalInterest: Math.round(totalInterest * 100) / 100,
+    totalRepayment: Math.round(totalRepayment * 100) / 100,
+    monthlyPayment: Math.round(monthlyPayment * 100) / 100
+  };
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -34,12 +47,56 @@ export async function POST(
       return NextResponse.json({ error: "Application not found" }, { status: 404 })
     }
 
-    if (application.status !== "APPROVED") {
+    if (application.status !== "APPROVED" && application.status !== "DISBURSED" ) {
       return NextResponse.json({ error: "Application must be approved before disbursement" }, { status: 400 })
     }
 
     if (application.status === "DISBURSED") {
       return NextResponse.json({ error: "Loan has already been disbursed" }, { status: 400 })
+    }
+
+    // If loan doesn't exist, create one
+    let loan = application.loan;
+    if (!loan) {
+      const loanDetails = calculateLoanDetails(
+        application.amount,
+        application.interestRate,
+        application.duration
+      );
+
+      // Calculate next payment due (1 month from disbursement)
+      const nextPaymentDue = new Date();
+      nextPaymentDue.setMonth(nextPaymentDue.getMonth() + 1);
+
+      loan = await db.loan.create({
+        data: {
+          applicationId: id,
+          approvedAmount: application.amount,
+          disbursementAmount: application.amount, // Assuming full amount is disbursed
+          interestRate: application.interestRate,
+          duration: application.duration,
+          monthlyPayment: loanDetails.monthlyPayment,
+          totalRepayment: loanDetails.totalRepayment,
+          disbursementDate: new Date(),
+          bankAccount: application.accountNumber || null,
+          bankName: application.bankName || null,
+          nextPaymentDue,
+          createdBy: session.user.id,
+        }
+      });
+    } else {
+      // Update existing loan with disbursement date
+      loan = await db.loan.update({
+        where: { id: loan.id },
+        data: {
+          disbursementDate: new Date(),
+          nextPaymentDue: loan.nextPaymentDue || (() => {
+            const nextPaymentDue = new Date();
+            nextPaymentDue.setMonth(nextPaymentDue.getMonth() + 1);
+            return nextPaymentDue;
+          })()
+        }
+      });
     }
 
     // Update application status to disbursed
@@ -53,22 +110,14 @@ export async function POST(
         applicant: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
             email: true,
           },
         },
+        loan: true
       },
     })
-
-    // If loan exists, update disbursement date
-    if (application.loan) {
-      await db.loan.update({
-        where: { id: application.loan.id },
-        data: {
-          disbursementDate: new Date()
-        }
-      })
-    }
 
     // Log the action
     await db.auditLog.create({
@@ -102,8 +151,9 @@ export async function POST(
     })
 
     return NextResponse.json({
-      message: "Loan disbursed successfully",
+      message: `Loan of ₦${application.amount.toLocaleString()} has been successfully disbursed to ${updatedApplication.applicant.firstName} ${updatedApplication.applicant.lastName}`,
       application: updatedApplication,
+      loan: loan
     })
   } catch (error) {
     console.error("Error disbursing loan:", error)

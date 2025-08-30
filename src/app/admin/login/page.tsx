@@ -183,7 +183,7 @@ export default function AdminLogin() {
 
         <div className="text-center mt-6">
           <p className="text-xs text-gray-500">
-            © 2024 AOPE Credit. All rights reserved.
+            © {new Date().getFullYear()} AOPE Credit. All rights reserved.
           </p>
         </div>
       </div>

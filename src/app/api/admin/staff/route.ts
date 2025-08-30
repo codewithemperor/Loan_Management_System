@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { UserRole } from "@prisma/client"
+import bcrypt from "bcryptjs"
 
 export async function GET(request: NextRequest) {
   try {
@@ -103,7 +104,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { name, email, role, phoneNumber, address } = body
+    const { name, email, role, phoneNumber, address, password } = body
 
     // Validate required fields
     if (!name || !email || !role) {
@@ -120,12 +121,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate a temporary password
-    const tempPassword = Math.random().toString(36).slice(-8)
+    const tempPassword = password || Math.random().toString(36).slice(-8)
 
     // Split name into first and last name
     const nameParts = name.trim().split(" ")
     const firstName = nameParts[0]
     const lastName = nameParts.slice(1).join(" ")
+
+    // Hash the password
+    const hashedPassword = await bcrypt.hash(tempPassword, 12)
 
     // Create new staff member
     const newStaff = await db.user.create({
@@ -134,7 +138,7 @@ export async function POST(request: NextRequest) {
         firstName,
         lastName,
         name,
-        password: tempPassword, // In production, this should be hashed
+        password: hashedPassword,
         role: role as UserRole,
         phoneNumber,
         address,
