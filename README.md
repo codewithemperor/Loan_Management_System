@@ -1,141 +1,264 @@
-# 🚀 Welcome to Z.ai Code Scaffold
+## Overview
+The Loan Management System is a comprehensive web application designed to streamline and automate the entire loan lifecycle for financial institutions. This system provides end-to-end functionality from loan application and approval to disbursement, repayment tracking, and closure. Built with modern technologies, it offers a secure, scalable, and user-friendly platform for managing various types of loans including personal loans, business loans, mortgages, and auto loans.
 
-A modern, production-ready web application scaffold powered by cutting-edge technologies, designed to accelerate your development with [Z.ai](https://chat.z.ai)'s AI-powered coding assistance.
+## Methodology
+The project follows a structured development methodology:
 
-## ✨ Technology Stack
+1. **Requirements Analysis**: Identifying key functional requirements for loan processing
+2. **System Design**: Creating database schema, API contracts, and UI wireframes
+3. **Agile Development**: Implementing features in 2-week sprints
+4. **Continuous Testing**: Unit tests, integration tests, and end-to-end testing
+5. **Deployment**: CI/CD pipeline for automated testing and deployment
+6. **Maintenance**: Regular updates and feature enhancements
 
-This scaffold provides a robust foundation built with:
+The system is designed with a focus on:
+- Security and compliance with financial regulations
+- User experience for both borrowers and loan officers
+- Scalability to handle growing loan portfolios
+- Integration with external payment gateways and credit bureaus
 
-### 🎯 Core Framework
-- **⚡ Next.js 15** - The React framework for production with App Router
-- **📘 TypeScript 5** - Type-safe JavaScript for better developer experience
-- **🎨 Tailwind CSS 4** - Utility-first CSS framework for rapid UI development
+## Tech Stack
+- **Frontend**:
+- Next.js 14 (App Router)
+- React 18
+- TypeScript
+- Tailwind CSS
+- Shadcn/ui components
+- Recharts for data visualization
+- **Backend**:
+- Node.js
+- Express.js
+- TypeScript
+- **Database**:
+- PostgreSQL
+- Prisma ORM
+- **Authentication**:
+- NextAuth.js
+- JWT tokens
+- **Payment Integration**:
+- Stripe API
+- **File Storage**:
+- AWS S3
+- **Deployment**:
+- Vercel (frontend)
+- Railway (backend)
+- AWS RDS (database)
+- **Development Tools**:
+- ESLint
+- Prettier
+- Husky (git hooks)
+- Commitlint
 
-### 🧩 UI Components & Styling
-- **🧩 shadcn/ui** - High-quality, accessible components built on Radix UI
-- **🎯 Lucide React** - Beautiful & consistent icon library
-- **🌈 Framer Motion** - Production-ready motion library for React
-- **🎨 Next Themes** - Perfect dark mode in 2 lines of code
+## File Structure
+\`\`\`
+Loan_Management_System/
+├── app/                    # Next.js app directory (App Router)
+│   ├── (auth)/            # Authentication routes
+│   │   ├── login/
+│   │   └── register/
+│   ├── api/               # API routes
+│   │   ├── auth/          # Authentication endpoints
+│   │   ├── loans/         # Loan-related endpoints
+│   │   ├── payments/      # Payment endpoints
+│   │   ├── customers/     # Customer endpoints
+│   │   └── reports/       # Report endpoints
+│   ├── dashboard/         # Dashboard pages
+│   ├── loans/             # Loan management pages
+│   ├── customers/         # Customer management pages
+│   ├── payments/          # Payment tracking pages
+│   ├── reports/           # Report generation pages
+│   ├── settings/          # System settings pages
+│   ├── globals.css        # Global styles
+│   ├── layout.tsx         # Root layout component
+│   └── page.tsx           # Home page
+├── components/            # Reusable React components
+│   ├── ui/                # Shadcn/ui components
+│   ├── auth/              # Authentication components
+│   ├── charts/            # Chart components
+│   ├── forms/             # Form components
+│   ├── loans/             # Loan-specific components
+│   └── layout/            # Layout components
+├── lib/                   # Utility functions
+│   ├── auth.ts            # Authentication configuration
+│   ├── db.ts              # Database connection
+│   ├── utils.ts           # Helper functions
+│   ├── validations.ts     # Validation schemas
+│   └── stripe.ts          # Stripe integration
+├── prisma/                # Database schema and migrations
+│   ├── migrations/        # Database migration files
+│   └── schema.prisma      # Database schema definition
+├── public/                # Static assets
+│   ├── images/            # Images and icons
+│   └── favicon.ico        # Favicon
+├── .env.example           # Environment variables example
+├── .eslintrc.json         # ESLint configuration
+├── .gitignore             # Git ignore rules
+├── components.json        # Shadcn/ui configuration
+├── next.config.js         # Next.js configuration
+├── package.json           # Project dependencies and scripts
+├── postcss.config.js      # PostCSS configuration
+├── tailwind.config.js     # Tailwind CSS configuration
+└── tsconfig.json          # TypeScript configuration
+\`\`\`
 
-### 📋 Forms & Validation
-- **🎣 React Hook Form** - Performant forms with easy validation
-- **✅ Zod** - TypeScript-first schema validation
+## Database Schema
+The system uses PostgreSQL as the database with the following main entities:
 
-### 🔄 State Management & Data Fetching
-- **🐻 Zustand** - Simple, scalable state management
-- **🔄 TanStack Query** - Powerful data synchronization for React
-- **🌐 Axios** - Promise-based HTTP client
+### Users
+- \`id\`: Primary key
+- \`email\`: User's email address (unique)
+- \`name\`: User's full name
+- \`role\`: User role (admin, loan_officer, customer)
+- \`passwordHash\`: Hashed password
+- \`createdAt\`: Timestamp of account creation
+- \`updatedAt\`: Timestamp of last update
 
-### 🗄️ Database & Backend
-- **🗄️ Prisma** - Next-generation Node.js and TypeScript ORM
-- **🔐 NextAuth.js** - Complete open-source authentication solution
+### Customers
+- \`id\`: Primary key
+- \`userId\`: Foreign key to Users
+- \`customerNumber\`: Unique customer identifier
+- \`dateOfBirth\`: Customer's date of birth
+- \`phone\`: Phone number
+- \`address\`: Physical address
+- \`creditScore\`: Credit score
+- \`annualIncome\`: Annual income
+- \`employmentStatus\`: Employment status
+- \`createdAt\`: Timestamp of creation
+- \`updatedAt\`: Timestamp of last update
 
-### 🎨 Advanced UI Features
-- **📊 TanStack Table** - Headless UI for building tables and datagrids
-- **🖱️ DND Kit** - Modern drag and drop toolkit for React
-- **📊 Recharts** - Redefined chart library built with React and D3
-- **🖼️ Sharp** - High performance image processing
+### LoanProducts
+- \`id\`: Primary key
+- \`name\`: Product name (Personal Loan, Business Loan, etc.)
+- \`description\`: Product description
+- \`interestRate\`: Annual interest rate
+- \`minAmount\`: Minimum loan amount
+- \`maxAmount\`: Maximum loan amount
+- \`minTerm\`: Minimum loan term (months)
+- \`maxTerm\`: Maximum loan term (months)
+- \`processingFee\`: Processing fee percentage
+- \`isActive\`: Product availability status
+- \`createdAt\`: Timestamp of creation
+- \`updatedAt\`: Timestamp of last update
 
-### 🌍 Internationalization & Utilities
-- **🌍 Next Intl** - Internationalization library for Next.js
-- **📅 Date-fns** - Modern JavaScript date utility library
-- **🪝 ReactUse** - Collection of essential React hooks for modern development
+### Loans
+- \`id\`: Primary key
+- \`loanNumber\`: Unique loan identifier
+- \`customerId\`: Foreign key to Customers
+- \`productId\`: Foreign key to LoanProducts
+- \`amount\`: Loan amount
+- \`term\`: Loan term (months)
+- \`interestRate\`: Applied interest rate
+- \`status\`: Loan status (applied, approved, disbursed, active, closed, defaulted)
+- \`appliedDate\`: Date of application
+- \`approvedDate\`: Date of approval (nullable)
+- \`disbursedDate\`: Date of disbursement (nullable)
+- \`dueDate\`: Final due date
+- \`processingFee\`: Processing fee amount
+- \`assignedTo\`: Foreign key to Users (loan officer)
+- \`notes\`: Additional notes
+- \`createdAt\`: Timestamp of creation
+- \`updatedAt\`: Timestamp of last update
 
-## 🎯 Why This Scaffold?
+### Repayments
+- \`id\`: Primary key
+- \`loanId\`: Foreign key to Loans
+- \`amount\`: Repayment amount
+- \`paymentDate\`: Date of payment
+- \`paymentMethod\`: Payment method (bank_transfer, check, cash)
+- \`transactionId\`: Transaction identifier from payment gateway
+- \`status\`: Payment status (pending, completed, failed)
+- \`lateFee\`: Late fee applied
+- \`createdAt\`: Timestamp of creation
+- \`updatedAt\`: Timestamp of last update
 
-- **🏎️ Fast Development** - Pre-configured tooling and best practices
-- **🎨 Beautiful UI** - Complete shadcn/ui component library with advanced interactions
-- **🔒 Type Safety** - Full TypeScript configuration with Zod validation
-- **📱 Responsive** - Mobile-first design principles with smooth animations
-- **🗄️ Database Ready** - Prisma ORM configured for rapid backend development
-- **🔐 Auth Included** - NextAuth.js for secure authentication flows
-- **📊 Data Visualization** - Charts, tables, and drag-and-drop functionality
-- **🌍 i18n Ready** - Multi-language support with Next Intl
-- **🚀 Production Ready** - Optimized build and deployment settings
-- **🤖 AI-Friendly** - Structured codebase perfect for AI assistance
+### Collaterals
+- \`id\`: Primary key
+- \`loanId\`: Foreign key to Loans
+- \`type\`: Collateral type (property, vehicle, etc.)
+- \`description\`: Collateral description
+- \`value\`: Collateral value
+- \`documentUrl\`: URL to collateral document
+- \`createdAt\`: Timestamp of creation
+- \`updatedAt\`: Timestamp of last update
 
-## 🚀 Quick Start
+### Documents
+- \`id\`: Primary key
+- \`customerId\`: Foreign key to Customers (nullable)
+- \`loanId\`: Foreign key to Loans (nullable)
+- \`type\`: Document type (id_proof, income_proof, bank_statement, etc.)
+- \`name\`: Document name
+- \`fileUrl\`: URL to stored file
+- \`uploadedBy\`: Foreign key to Users
+- \`verified\`: Verification status
+- \`verifiedBy\`: Foreign key to Users (verifier)
+- \`verifiedAt\`: Timestamp of verification (nullable)
+- \`createdAt\`: Timestamp of creation
+- \`updatedAt\`: Timestamp of last update
 
-```bash
-# Install dependencies
+### Notifications
+- \`id\`: Primary key
+- \`userId\`: Foreign key to Users
+- \`title\`: Notification title
+- \`message\`: Notification message
+- \`type\`: Notification type (info, warning, alert)
+- \`isRead\`: Read status
+- \`createdAt\`: Timestamp of creation
+
+## Installation
+1. Clone the repository:
+\`\`\`bash
+git clone https://github.com/codewithemperor/Loan_Management_System.git
+cd Loan_Management_System
+\`\`\`
+
+2. Install dependencies:
+\`\`\`bash
 npm install
+\`\`\`
 
-# Start development server
+3. Set up environment variables:
+- Copy \`.env.example\` to \`.env.local\`
+- Fill in the required environment variables:
+    \`\`\`
+    DATABASE_URL="your_database_url"
+    NEXTAUTH_URL="http://localhost:3000"
+    NEXTAUTH_SECRET="your_nextauth_secret"
+    STRIPE_SECRET_KEY="your_stripe_secret_key"
+    STRIPE_PUBLISHABLE_KEY="your_stripe_publishable_key"
+    AWS_ACCESS_KEY_ID="your_aws_access_key"
+    AWS_SECRET_ACCESS_KEY="your_aws_secret_key"
+    AWS_BUCKET_NAME="your_s3_bucket_name"
+    AWS_REGION="your_aws_region"
+    \`\`\`
+
+4. Set up the database:
+\`\`\`bash
+npx prisma migrate dev
+npx prisma generate
+\`\`\`
+
+5. Run the development server:
+\`\`\`bash
 npm run dev
+\`\`\`
 
-# Build for production
-npm run build
+6. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-# Start production server
-npm start
-```
+## Usage
+- **Administrators**: Can manage users, loan products, system settings, and view system-wide reports.
+- **Loan Officers**: Can process loan applications, approve/reject loans, manage customer accounts, and track repayments.
+- **Customers**: Can apply for loans, upload documents, view loan status, and make repayments.
 
-Open [http://localhost:3000](http://localhost:3000) to see your application running.
+## Features
+- **Loan Application**: Online loan application with document upload
+- **Loan Processing**: Workflow for loan approval and disbursement
+- **Customer Management**: Complete customer profile and document management
+- **Repayment Tracking**: Automated repayment schedule and tracking
+- **Payment Processing**: Integration with payment gateways
+- **Collateral Management**: Tracking and valuation of loan collateral
+- **Reporting**: Comprehensive reports for loan portfolio performance
+- **Notification System**: Automated alerts for payments, due dates, and status changes
+- **Document Management**: Secure storage and verification of customer documents
+- **User Management**: Role-based access control
+- **Dashboard**: Real-time analytics and key metrics
 
-## 🤖 Powered by Z.ai
-
-This scaffold is optimized for use with [Z.ai](https://chat.z.ai) - your AI assistant for:
-
-- **💻 Code Generation** - Generate components, pages, and features instantly
-- **🎨 UI Development** - Create beautiful interfaces with AI assistance  
-- **🔧 Bug Fixing** - Identify and resolve issues with intelligent suggestions
-- **📝 Documentation** - Auto-generate comprehensive documentation
-- **🚀 Optimization** - Performance improvements and best practices
-
-Ready to build something amazing? Start chatting with Z.ai at [chat.z.ai](https://chat.z.ai) and experience the future of AI-powered development!
-
-## 📁 Project Structure
-
-```
-src/
-├── app/                 # Next.js App Router pages
-├── components/          # Reusable React components
-│   └── ui/             # shadcn/ui components
-├── hooks/              # Custom React hooks
-└── lib/                # Utility functions and configurations
-```
-
-## 🎨 Available Features & Components
-
-This scaffold includes a comprehensive set of modern web development tools:
-
-### 🧩 UI Components (shadcn/ui)
-- **Layout**: Card, Separator, Aspect Ratio, Resizable Panels
-- **Forms**: Input, Textarea, Select, Checkbox, Radio Group, Switch
-- **Feedback**: Alert, Toast (Sonner), Progress, Skeleton
-- **Navigation**: Breadcrumb, Menubar, Navigation Menu, Pagination
-- **Overlay**: Dialog, Sheet, Popover, Tooltip, Hover Card
-- **Data Display**: Badge, Avatar, Calendar
-
-### 📊 Advanced Data Features
-- **Tables**: Powerful data tables with sorting, filtering, pagination (TanStack Table)
-- **Charts**: Beautiful visualizations with Recharts
-- **Forms**: Type-safe forms with React Hook Form + Zod validation
-
-### 🎨 Interactive Features
-- **Animations**: Smooth micro-interactions with Framer Motion
-- **Drag & Drop**: Modern drag-and-drop functionality with DND Kit
-- **Theme Switching**: Built-in dark/light mode support
-
-### 🔐 Backend Integration
-- **Authentication**: Ready-to-use auth flows with NextAuth.js
-- **Database**: Type-safe database operations with Prisma
-- **API Client**: HTTP requests with Axios + TanStack Query
-- **State Management**: Simple and scalable with Zustand
-
-### 🌍 Production Features
-- **Internationalization**: Multi-language support with Next Intl
-- **Image Optimization**: Automatic image processing with Sharp
-- **Type Safety**: End-to-end TypeScript with Zod validation
-- **Essential Hooks**: 100+ useful React hooks with ReactUse for common patterns
-
-## 🤝 Get Started with Z.ai
-
-1. **Clone this scaffold** to jumpstart your project
-2. **Visit [chat.z.ai](https://chat.z.ai)** to access your AI coding assistant
-3. **Start building** with intelligent code generation and assistance
-4. **Deploy with confidence** using the production-ready setup
-
----
-
-Built with ❤️ for the developer community. Supercharged by [Z.ai](https://chat.z.ai) 🚀
